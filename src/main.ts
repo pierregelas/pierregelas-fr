@@ -7,6 +7,7 @@ import { registerJournalRecalcCommand } from "./commands/journalRecalc";
 import { registerRestesCommand } from "./commands/restes";
 import { registerTagsCommand } from "./commands/tags"; // ✅ NEW
 import { loadSettings, saveSettings, PierregelasSettingTab } from "./settings";
+import { registerImportWordpressCommand } from "./ui/commands";
 
 export default class PierregelasPlugin extends Plugin {
   async onload() {
@@ -22,6 +23,7 @@ export default class PierregelasPlugin extends Plugin {
 	registerJournalRecalcCommand(this);
 	registerRestesCommand(this);
 	registerTagsCommand(this); // ✅ NEW
+	registerImportWordpressCommand(this.app, spec => this.addCommand(spec));
   }
 
   onunload() {
