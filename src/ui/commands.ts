@@ -1,10 +1,11 @@
 // src/ui/commands.ts
 // Commande "Importer un CSV WordPress" + picker CSV via FuzzySuggestModal (desktop).
-// Utilise l'I/O Obsidian (FileSystemAdapter) et l'action importWordpressCsv.
+// Ajout: modale de prévisualisation (dry-run) avec Mettre à jour / Annuler.
 
 import { App, Notice, TFile, FileSystemAdapter, FuzzySuggestModal } from "obsidian";
 import { importWordpressCsv } from "@actions/importWordpress";
 import type { VaultIO } from "@core/upsert";
+import { ImportPreviewModal } from "./previewModal";
 
 /* -------------------------------------------------------
    Helpers chemins ABS <-> REL (desktop uniquement)
@@ -53,48 +54,31 @@ function makeVaultIO(app: App): VaultIO {
 }
 
 /* -------------------------------------------------------
-   Modal de sélection CSV — FuzzySuggestModal (corrigé)
+   Modal de sélection CSV — FuzzySuggestModal, callback onPick
 ------------------------------------------------------- */
 class CsvPickerModal extends FuzzySuggestModal<TFile> {
   private picked = false;
-  private resolve!: (value: string|null) => void;
-  private promise: Promise<string|null>;
-
-  constructor(private appRef: App) {
+  constructor(private appRef: App, private onPick: (absPath: string|null) => void) {
 	super(appRef);
 	this.setPlaceholder("Choisir un fichier CSV à importer…");
-	this.promise = new Promise<string|null>((res) => (this.resolve = res));
-  }
-
-  openAndGetSelection(): Promise<string|null> {
-	const csvFiles = this.getItems();
-	if (!csvFiles.length) {
-	  this.resolve(null);
-	  return this.promise;
-	}
-	this.open();
-	return this.promise;
   }
 
   getItems(): TFile[] {
-	return this.appRef.vault
-	  .getFiles()
-	  .filter((f) => f.extension.toLowerCase() === "csv");
+	return this.appRef.vault.getFiles().filter(f => f.extension.toLowerCase() === "csv");
   }
 
   getItemText(file: TFile): string {
-	return file.path; // affichage: chemin complet; tu peux mettre file.name si tu préfères
+	return file.path; // ou file.name si tu préfères
   }
 
-  onChooseItem(file: TFile): void {
+  onChooseItem(file: TFile, _evt: MouseEvent | KeyboardEvent): void {
 	this.picked = true;
-	this.resolve(toAbs(this.appRef, file.path));
-	// FuzzySuggestModal ferme automatiquement après le choix
+	const abs = toAbs(this.appRef, file.path);
+	this.onPick(abs);
   }
 
   onClose(): void {
-	// Ne renvoie null que si aucun choix n'a été fait
-	if (!this.picked) this.resolve(null);
+	if (!this.picked) this.onPick(null);
 	super.onClose();
   }
 }
@@ -113,17 +97,34 @@ export function registerImportWordpressCommand(
 	name: "Importer un CSV WordPress",
 	callback: async () => {
 	  try {
-		const picker = new CsvPickerModal(app);
-		const csvAbs = await picker.openAndGetSelection();
-		if (!csvAbs) {
-		  new Notice("Aucun fichier .csv sélectionné.");
+		const picker = new CsvPickerModal(app, async (csvAbs) => {
+		  if (!csvAbs) {
+			new Notice("Aucun fichier .csv sélectionné.");
+			return;
+		  }
+		  try {
+			const outDirAbs = `${getVaultRootAbs(app)}/NEW`;
+
+			// 1) Dry-run pour obtenir les comptes
+			const drySummary = await importWordpressCsv(csvAbs, io, { outDirAbs, dryRun: true });
+
+			// 2) Modale de prévisualisation
+			const modal = new ImportPreviewModal(app, drySummary, async () => {
+			  const summary = await importWordpressCsv(csvAbs, io, { outDirAbs, dryRun: false });
+			  new Notice(`Import WP — créés: ${summary.created}, MAJ: ${summary.updated}, erreurs: ${summary.errors}`);
+			});
+			modal.open();
+		  } catch (e: any) {
+			console.error(e);
+			new Notice(`Import WP — erreur: ${String(e?.message ?? e)}`);
+		  }
+		});
+
+		if (picker.getItems().length === 0) {
+		  new Notice("Aucun fichier .csv trouvé dans la vault.");
 		  return;
 		}
-
-		const outDirAbs = `${getVaultRootAbs(app)}/NEW`;
-		const summary = await importWordpressCsv(csvAbs, io, { outDirAbs, dryRun: false });
-
-		new Notice(`Import WP — créés: ${summary.created}, MAJ: ${summary.updated}, erreurs: ${summary.errors}`);
+		picker.open();
 	  } catch (err: any) {
 		console.error(err);
 		new Notice(`Import WP — erreur: ${String(err?.message ?? err)}`);
