@@ -1,0 +1,10 @@
+{
+  "id": "pierregelas-fr",
+  "name": "pierregelas.fr",
+  "version": "0.6.0",
+  "minAppVersion": "1.5.0",
+  "description": "Gamme d'actions pour gestion import export pierregelas.fr",
+  "author": "Pierre Gelas",
+  "authorUrl": "https://pierregelas.fr",
+  "isDesktopOnly": true
+}
