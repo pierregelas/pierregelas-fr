@@ -1,13 +1,17 @@
 // src/services/yamlPatch.ts
-// Patch YAML frontmatter en conservant les types (bool, number, string).
-// Utilise js-yaml pour parser/dumper proprement.
+// 1) applyYamlPatch: Patch YAML frontmatter en conservant les types (bool, number, string) via js-yaml.
+// 2) patchTagsAndMaj: Patch ciblé des tags qui PRÉSERVE le YAML maître (sections, ordre) et force maj_wp: true si changement.
 
 import { load as yamlLoad, dump as yamlDump } from "js-yaml";
+import type { VaultIO } from "@core/upsert";
+import { YAML_SECTION_LINES } from "@core/yamlMaster";
 
 /** Applique des mises à jour sur le YAML frontmatter d’un fichier Markdown.
  * - `updates` peut contenir des chemins en dot-notation (ex: "diff_counts.nouveaux_tags": 3).
  * - Les booléens et nombres sont conservés comme types natifs (pas de guillemets).
  * - Si le document n’a pas de YAML, on en crée un minimal avec uniquement les clés mises à jour.
+ * - ⚠️ Cette fonction ré-émet le YAML sans les lignes de sections (IMAGES:/LIEN:/MAJ:/POST:/WP:).
+ *   Si tu veux préserver ces sections, utilise patchTagsAndMaj pour le cas des tags.
  */
 export function applyYamlPatch(
   raw: string,
@@ -48,7 +52,7 @@ export function applyYamlPatch(
   }
 }
 
-/* -------------------- Helpers -------------------- */
+/* -------------------- Helpers applyYamlPatch -------------------- */
 
 /** Sépare le frontmatter YAML (sans délimiteurs) du corps Markdown. */
 function splitYamlFrontmatter(raw: string): { yaml: string; body: string } {
@@ -85,4 +89,198 @@ function setDotPath(target: any, dotPath: string, value: any): void {
 	  cur = cur[k];
 	}
   }
+}
+
+/* =================================================================================================
+   patchTagsAndMaj — Préserve les sections YAML maître et force maj_wp: true uniquement si TAGS changent
+================================================================================================= */
+
+/**
+ * Met à jour la clé YAML `tags` (liste de slugs).
+ * - Si la liste finale diffère de l’existante (ordre compris), écrit le fichier ET force `maj_wp: true`.
+ * - Sinon, ne modifie rien.
+ * - Préserve les lignes de sections du YAML maître (IMAGES:/LIEN:/MAJ:/POST:/WP:).
+ */
+export async function patchTagsAndMaj(
+  noteAbsPath: string,
+  nextTags: string[],
+  io: VaultIO
+): Promise<"changed" | "unchanged"> {
+  const raw = await io.read(noteAbsPath);
+  const { fmStart, fmEnd, fm, body } = tagsPatch_extractFrontmatter(raw);
+
+  // Normalise/déduplique correctement côté entrée
+  const desired = tagsPatch_dedupeKeepOrder(
+	nextTags.map(s => String(s).trim()).filter(Boolean)
+  );
+
+  if (!fm) {
+	// Pas de frontmatter → on crée un FM minimal respectant les sections YAML maître (MAJ/POST)
+	const minimal = tagsPatch_buildMinimalFrontmatter(desired);
+	await io.write(noteAbsPath, minimal + "\n" + body);
+	return "changed";
+  }
+
+  // Lire l'état courant des tags (respecte les blocs list)
+  const current = tagsPatch_parseTagsFromFrontmatter(fm);
+
+  // Si identiques (même ordre), ne rien faire
+  if (tagsPatch_arraysEqual(current, desired)) {
+	return "unchanged";
+  }
+
+  // Remplacer le bloc tags dans le YAML existant (sans casser les sections)
+  const fmTagsPatched = tagsPatch_replaceTagsBlock(fm, desired);
+
+  // Forcer maj_wp: true (remplacer ou insérer, idéalement sous la section MAJ)
+  const fmFinal = tagsPatch_setMajWpTrue(fmTagsPatched);
+
+  // Ré-assembler le document avec le YAML patché et le body original
+  const next = tagsPatch_assembleDocument(raw, fmStart, fmEnd, fmFinal);
+  await io.write(noteAbsPath, next);
+  return "changed";
+}
+
+/* ───────────────────────────── helpers patchTagsAndMaj (préfixés) ───────────────────────────── */
+
+function tagsPatch_extractFrontmatter(src: string): { fmStart: number; fmEnd: number; fm: string | null; body: string } {
+  const text = src.replace(/\r\n?/g, "\n");
+  const m = text.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!m) return { fmStart: -1, fmEnd: -1, fm: null, body: text };
+  const full = m[0];
+  const fm = m[1] ?? "";
+  const fmStart = m.index ?? 0;
+  const fmEnd = fmStart + full.length;
+  const body = text.slice(fmEnd);
+  return { fmStart, fmEnd, fm, body };
+}
+
+function tagsPatch_buildMinimalFrontmatter(tags: string[]): string {
+  const out: string[] = [];
+  out.push("---");
+  out.push(YAML_SECTION_LINES.MAJ);
+  out.push("maj_wp: true");
+  out.push(YAML_SECTION_LINES.POST);
+  if (!tags.length) out.push("tags: []");
+  else {
+	out.push("tags:");
+	for (const t of tags) out.push(`- ${t}`);
+  }
+  out.push("---");
+  return out.join("\n");
+}
+
+function tagsPatch_parseTagsFromFrontmatter(fm: string): string[] {
+  const lines = fm.replace(/\r\n?/g, "\n").split("\n");
+  const acc: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+	const L = lines[i];
+	if (/^[ \t]*tags[ \t]*:\s*\[\s*\]\s*$/.test(L)) return [];
+	if (/^[ \t]*tags[ \t]*:\s*$/.test(L)) {
+	  for (let j = i + 1; j < lines.length; j++) {
+		const Lj = lines[j];
+		if (/^[ \t]*- /.test(Lj)) {
+		  const item = Lj.replace(/^[ \t]*-\s*/, "");
+		  acc.push(tagsPatch_unquote(item.trim()));
+		} else break;
+	  }
+	  break;
+	}
+  }
+  return tagsPatch_dedupeKeepOrder(acc);
+}
+
+function tagsPatch_replaceTagsBlock(fm: string, tags: string[]): string {
+  const lines = fm.replace(/\r\n?/g, "\n").split("\n");
+  let start = -1, end = -1;
+
+  // Chercher "tags:" (ligne seule), "tags: []" ou "tags: [a, b]" (on remplace dans tous les cas)
+  for (let i = 0; i < lines.length; i++) {
+	const L = lines[i];
+	if (/^[ \t]*tags[ \t]*:/.test(L)) {
+	  start = i;
+	  if (/^[ \t]*tags[ \t]*:\s*\[\s*\]\s*$/.test(L)) {
+		end = i;
+	  } else if (/^[ \t]*tags[ \t]*:\s*$/.test(L)) {
+		let j = i + 1;
+		while (j < lines.length && /^[ \t]*- /.test(lines[j])) j++;
+		end = j - 1;
+	  } else {
+		// ex.: "tags: [a, b]" → on remplace la ligne
+		end = i;
+	  }
+	  break;
+	}
+  }
+
+  const block: string[] = !tags.length
+	? ["tags: []"]
+	: ["tags:", ...tags.map(t => `- ${t}`)];
+
+  if (start === -1) {
+	// Pas de 'tags:' → insérer de préférence juste après la section POST, sinon à la fin du FM
+	const postIdx = lines.findIndex(l => /^POST:/.test(l));
+	return (postIdx >= 0)
+	  ? tagsPatch_insertAfter(lines, postIdx, block).join("\n")
+	  : lines.concat(block).join("\n");
+  }
+
+  return [
+	...lines.slice(0, start),
+	...block,
+	...lines.slice(end + 1),
+  ].join("\n");
+}
+
+function tagsPatch_setMajWpTrue(fm: string): string {
+  const lines = fm.replace(/\r\n?/g, "\n").split("\n");
+
+  // Si un maj_wp existe déjà → remplace
+  for (let i = 0; i < lines.length; i++) {
+	if (/^[ \t]*maj_wp[ \t]*:/.test(lines[i])) {
+	  lines[i] = "maj_wp: true";
+	  return lines.join("\n");
+	}
+  }
+
+  // Sinon, insérer dans la section MAJ si existante, sinon en tête du YAML
+  const majIdx = lines.findIndex(l => /^MAJ:/.test(l));
+  return (majIdx >= 0)
+	? tagsPatch_insertAfter(lines, majIdx, ["maj_wp: true"]).join("\n")
+	: ["maj_wp: true", ...lines].join("\n");
+}
+
+function tagsPatch_assembleDocument(src: string, fmStart: number, fmEnd: number, fmNew: string): string {
+  const text = src.replace(/\r\n?/g, "\n");
+  return `${text.slice(0, fmStart)}---\n${fmNew}\n---\n${text.slice(fmEnd)}`;
+}
+
+function tagsPatch_insertAfter(lines: string[], index: number, block: string[]): string[] {
+  return lines.slice(0, index + 1).concat(block, lines.slice(index + 1));
+}
+
+function tagsPatch_unquote(s: string): string {
+  const dq = s.match(/^"(.*)"$/);
+  if (dq) return dq[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  const sq = s.match(/^'(.*)'$/);
+  if (sq) return sq[1];
+  return s;
+}
+
+function tagsPatch_arraysEqual(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function tagsPatch_dedupeKeepOrder(arr: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of arr) {
+	if (!v) continue;
+	if (seen.has(v)) continue;
+	seen.add(v);
+	out.push(v);
+  }
+  return out;
 }

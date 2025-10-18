@@ -3,6 +3,7 @@
 
 import type { Vault, TAbstractFile, TFile } from "obsidian";
 import { normalizePath } from "obsidian";
+const REQUIRED_HEADER = "ob_tags_slug";
 
 /* ============================ Constantes ============================ */
 
@@ -264,4 +265,114 @@ function toLocalTimestamp(): string {
   const hh = pad(d.getHours());
   const mm = pad(d.getMinutes());
   return `${YYYY}${MM}${DD}-${hh}${mm}`;
+}
+
+// src/services/tagsTable.ts
+// Lecture de /wp_tags/ob_tags_table.md et extraction de la colonne `obs_tags_slug` (liste de slugs autorisés).
+
+import type { VaultIO } from "@core/upsert";
+
+/**
+ * Charge la liste des slugs autorisés depuis un tableau Markdown.
+ * - Chemin fixe: "/wp_tags/ob_tags_table.md" (par défaut)
+ * - Le tableau doit contenir un en-tête "obs_tags_slug" (casse insensible).
+ * - Déduplication avec conservation d'ordre; cellules vidées/whitespace ignorées.
+ *
+ * @throws Error si le fichier est introuvable ou si l'en-tête "obs_tags_slug" n'est pas trouvé.
+ */
+export async function loadObsTagSlugs(
+  io: VaultIO,
+  absPath: string = "/wp_tags/ob_tags_table.md"
+): Promise<string[]> {
+  let raw: string;
+  try {
+	raw = await io.read(absPath);
+  } catch (e) {
+	throw new Error(`Table des tags introuvable: ${absPath}`);
+  }
+
+  const lines = raw.replace(/\r\n?/g, "\n").split("\n");
+
+	// Trouver la première ligne d'en-tête de tableau contenant "ob_tags_slug"
+	let headerIdx = -1;
+	let headerCells: string[] = [];
+	for (let i = 0; i < lines.length; i++) {
+	  const L = lines[i].trim();
+	  if (!L.startsWith("|")) continue;
+	  const cells = splitMdRow(L);
+	  const idx = cells.findIndex(c => eqIgnoreCase(trimCell(c), REQUIRED_HEADER));
+	  if (idx !== -1) {
+		headerIdx = i;
+		headerCells = cells.map(trimCell);
+		break;
+	  }
+	}
+	if (headerIdx === -1) {
+	  throw new Error(`Colonne "${REQUIRED_HEADER}" introuvable dans ${absPath}`);
+	}
+
+
+  if (headerIdx === -1) {
+	throw new Error(`Colonne "obs_tags_slug" introuvable dans ${absPath}`);
+  }
+
+	const slugCol = headerCells.findIndex(c => eqIgnoreCase(c, REQUIRED_HEADER));
+	if (slugCol < 0) {
+	  throw new Error(`Colonne "${REQUIRED_HEADER}" introuvable dans ${absPath}`);
+	}
+
+  // Parcourir les lignes de données qui suivent l'en-tête tant qu'elles ressemblent à des lignes de tableau
+  const out: string[] = [];
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+	const rawLine = lines[i].trim();
+	if (!rawLine.startsWith("|")) break;                // fin du tableau
+	if (isSepRow(rawLine)) continue;                    // ligne séparatrice |---|----|
+	const cells = splitMdRow(rawLine);
+	const cell = trimCell(cells[slugCol] ?? "");
+	if (!cell) continue;
+
+	// Si la cellule contient plusieurs valeurs séparées (rare), on sépare par "," sinon on prend telle quelle
+	const parts = cell.split(",").map(s => s.trim()).filter(Boolean);
+	for (const p of parts) out.push(p);
+  }
+
+  return dedupeKeepOrder(out);
+}
+
+/* ───────────────────────────── helpers ───────────────────────────── */
+
+function trimCell(s: string): string {
+  return s.replace(/^\|+|\|+$/g, "").trim();
+}
+
+function splitMdRow(line: string): string[] {
+  // "| a | b | c |" -> ["a","b","c"]
+  // on enlève le premier et dernier '|' puis on split
+  const inner = line.replace(/^\|/, "").replace(/\|$/, "");
+  return inner.split("|").map(s => s.trim());
+}
+
+function isSepRow(line: string): boolean {
+  // Exemple: | --- | :---: | --- |
+  const inner = line.replace(/^\|/, "").replace(/\|$/, "");
+  return inner
+	.split("|")
+	.map(s => s.trim())
+	.every(seg => /^:?-{3,}:?$/.test(seg));
+}
+
+function eqIgnoreCase(a: string, b: string): boolean {
+  return a.localeCompare(b, undefined, { sensitivity: "accent" }) === 0;
+}
+
+function dedupeKeepOrder(arr: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of arr) {
+	if (!v) continue;
+	if (seen.has(v)) continue;
+	seen.add(v);
+	out.push(v);
+  }
+  return out;
 }

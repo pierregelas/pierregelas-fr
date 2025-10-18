@@ -1,11 +1,13 @@
 // src/ui/commands.ts
 // Commande "Importer un CSV WordPress" + picker CSV via FuzzySuggestModal (desktop).
 // Ajout: modale de prévisualisation (dry-run) avec Mettre à jour / Annuler.
+// + Enregistrement de la commande "Modifier les tags de la note…" (registerModifyNoteCommand).
 
 import { App, Notice, TFile, FileSystemAdapter, FuzzySuggestModal } from "obsidian";
 import { importWordpressCsv } from "@actions/importWordpress";
 import type { VaultIO } from "@core/upsert";
 import { ImportPreviewModal } from "./previewModal";
+import { registerModifyNoteCommand } from "../commands/modifyNote";
 
 /* -------------------------------------------------------
    Helpers chemins ABS <-> REL (desktop uniquement)
@@ -68,7 +70,7 @@ class CsvPickerModal extends FuzzySuggestModal<TFile> {
   }
 
   getItemText(file: TFile): string {
-	return file.path; // ou file.name si tu préfères
+	return file.path; // ou file.name si tu préfères afficher juste le nom
   }
 
   onChooseItem(file: TFile, _evt: MouseEvent | KeyboardEvent): void {
@@ -84,7 +86,7 @@ class CsvPickerModal extends FuzzySuggestModal<TFile> {
 }
 
 /* -------------------------------------------------------
-   Commande palette : "Importer un CSV WordPress"
+   Commandes UI à enregistrer
 ------------------------------------------------------- */
 export function registerImportWordpressCommand(
   app: App,
@@ -92,6 +94,7 @@ export function registerImportWordpressCommand(
 ): void {
   const io = makeVaultIO(app);
 
+  // ——— Commande : Importer un CSV WordPress
   addCommand({
 	id: "importer-csv-wordpress",
 	name: "Importer un CSV WordPress",
@@ -131,4 +134,8 @@ export function registerImportWordpressCommand(
 	  }
 	},
   });
+
+  // ——— Commande : Modifier les tags de la note…
+  // (enregistre la commande fournie par src/commands/modifyNote.ts)
+  registerModifyNoteCommand(app, addCommand);
 }
