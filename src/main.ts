@@ -5,7 +5,8 @@ import { registerJournalCommand } from "./commands/journal";
 import { registerArchivesCommand } from "./commands/archives";
 import { registerJournalRecalcCommand } from "./commands/journalRecalc";
 import { registerRestesCommand } from "./commands/restes";
-import { registerTagsCommand } from "./commands/tags"; // ✅ NEW
+import { registerTagsCommand } from "./commands/tags";
+import { registerModifyNoteCommand } from "./commands/modifyNote";
 import { loadSettings, saveSettings, PierregelasSettingTab } from "./settings";
 import { registerImportWordpressCommand } from "./ui/commands";
 
@@ -23,6 +24,7 @@ export default class PierregelasPlugin extends Plugin {
 	registerJournalRecalcCommand(this);
 	registerRestesCommand(this);
 	registerTagsCommand(this); // ✅ NEW
+	registerModifyNoteCommand(this.app, spec => this.addCommand(spec));
 	registerImportWordpressCommand(this.app, spec => this.addCommand(spec));
   }
 
