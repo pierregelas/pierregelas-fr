@@ -4,7 +4,9 @@
 // - maj_wp: false (infos depuis WP)
 // - Corps via renderBodyFromMaster(master): Vignette / Vidéo / Notes
 // - ensureUniquePath(..., io.exists) pour éviter les collisions
-// - Erreurs: loggées; en exécution (non dry-run), note dans NEW/ERRORS
+// - Erreurs enrichies: wp_row_index, wp_titre_raw, wp_id_raw, wp_headers_debug
+// - Lignes vides: comptées comme erreurs
+// - NEW: MAJ identiques vs modifiées + détail des champs modifiés
 
 import { readCsv } from "@core/csv";
 import { mapWpRowToMaster } from "@core/mapping.wordpress";
@@ -27,7 +29,7 @@ function toStr(v: unknown): string {
 
 /** Construit le contenu d'une note à partir du master (YAML + body) */
 function buildNoteContent(master: MasterFields): string {
-  // Règle d'import : maj_wp = false (les infos proviennent de WP)
+  // Import = source WP
   (master as any).maj_wp = false;
   const yamlStr = emitYaml(master);
   const bodyStr = renderBodyFromMaster(master);
@@ -39,7 +41,8 @@ async function writeErrorNote(
   opts: ImportOptions,
   io: VaultIO,
   row: Partial<WpRow>,
-  message: string
+  message: string,
+  rowIndex?: number
 ): Promise<string> {
   const baseName = sanitizeForFilename(
 	`ERROR_${toStr(row.wp_id) || "?"}_${toStr(row.wp_titre) || "sans-titre"}.md`
@@ -47,6 +50,7 @@ async function writeErrorNote(
   const outDir = `${opts.outDirAbs.replace(/[\/\\]+$/, "")}/ERRORS`;
   const dest = await ensureUniquePath(outDir, baseName, io.exists);
 
+  const headers = Object.keys(row ?? {}).sort();
   const yaml = [
 	"---",
 	"MAJ:",
@@ -56,6 +60,12 @@ async function writeErrorNote(
 	`post_id: ${JSON.stringify(toStr(row.wp_id) || "")}`,
 	"WP:",
 	`wp_error: ${JSON.stringify(message)}`,
+	"WP_DEBUG:",
+	`wp_row_index: ${rowIndex ?? -1}`,
+	`wp_titre_raw: ${JSON.stringify((row as any)?.wp_titre ?? "")}`,
+	`wp_id_raw: ${JSON.stringify((row as any)?.wp_id ?? "")}`,
+	"wp_headers_debug:",
+	...headers.map(h => `  - ${JSON.stringify(h)}`),
 	"---",
   ].join("\n");
 
@@ -64,16 +74,116 @@ async function writeErrorNote(
   return dest;
 }
 
+/** Validation stricte (spécifique Import CSV): wp_titre → post_titre_full, wp_id → post_id, obligatoires. */
+function enforceTitleAndIdForImport(master: any, row: any): void {
+  master.post_titre_full = toStr(row.wp_titre);
+  master.post_id = toStr(row.wp_id);
+  if (!toStr(master.post_titre_1)) master.post_titre_1 = master.post_titre_full;
+
+  if (!toStr(master.post_titre_full)) {
+	throw new Error("post_titre_full manquant (wp_titre vide)");
+  }
+  if (!toStr(master.post_id)) {
+	throw new Error("post_id manquant (wp_id vide)");
+  }
+}
+
+/* ───────────────────────── Diff existant vs nouveau (champs modifiés) ───────────────────────── */
+
+function splitFrontmatter(text: string): { yfm: string; body: string } {
+  // Extrait le frontmatter YAML si présent (--- ... --- au tout début)
+  const m = text.match(/^---\s*\n([\s\S]*?)\n---\s*\n?/);
+  if (!m) return { yfm: "", body: text ?? "" };
+  const yfm = m[1] ?? "";
+  const rest = text.slice(m[0].length);
+  return { yfm, body: rest ?? "" };
+}
+
+function normalizeEOL(s: string): string {
+  return (s ?? "").replace(/\r\n?/g, "\n");
+}
+
+function extractYamlKV(yfm: string): Record<string, string> {
+  // Parse minimaliste des lignes 'clé: valeur' en haut niveau (ignore sections type 'POST:' sans valeur)
+  const map: Record<string, string> = {};
+  const lines = normalizeEOL(yfm).split("\n");
+  for (const line of lines) {
+	// ignore listes et lignes vides
+	if (!line || /^\s*-/.test(line)) continue;
+	const m = line.match(/^([A-Za-z0-9_]+)\s*:\s*(.+)$/);
+	if (!m) continue;
+	const key = m[1].trim();
+	const val = m[2].trim();
+	if (key && val !== undefined && val !== "") {
+	  map[key] = val;
+	}
+  }
+  return map;
+}
+
+async function diffChangedFields(io: VaultIO, absPath: string, nextContent: string): Promise<string[]> {
+  // Lit le contenu courant, compare YAML clé/val + corps
+  let current = "";
+  try {
+	current = await io.read(absPath);
+  } catch {
+	return ["<inexistant>"]; // ne devrait pas arriver côté "updated", mais safety
+  }
+  const cur = splitFrontmatter(current);
+  const nxt = splitFrontmatter(nextContent);
+
+  const curMap = extractYamlKV(cur.yfm);
+  const nxtMap = extractYamlKV(nxt.yfm);
+
+  const keys = new Set([...Object.keys(curMap), ...Object.keys(nxtMap)]);
+  const changed: string[] = [];
+  for (const k of keys) {
+	const a = curMap[k] ?? "";
+	const b = nxtMap[k] ?? "";
+	if (a !== b) changed.push(k);
+  }
+
+  if (normalizeEOL(cur.body) !== normalizeEOL(nxt.body)) {
+	changed.push("corps");
+  }
+  return changed;
+}
+
 /**
- * Importe un CSV WordPress (chemin absolu) et crée/MAJ des notes dans outDirAbs.
- * - dryRun: ne crée pas de fichiers, retourne uniquement le résumé/log.
+ * Importe un CSV WordPress et renvoie un ImportSummary enrichi avec les listes:
+ * - created_paths[]
+ * - updated_identical_paths[], updated_modified_paths[]
+ * - updated_modified_details[]: { path, fields: string[] }
+ * - error_paths[]
+ * ainsi que les compteurs updated_identical / updated_modified.
  */
 export async function importWordpressCsv(
   csvAbsPath: string,
   io: VaultIO,
   opts: ImportOptions
-): Promise<ImportSummary> {
+): Promise<ImportSummary & {
+  created_paths: string[];
+  updated_identical_paths: string[];
+  updated_modified_paths: string[];
+  updated_modified_details: { path: string; fields: string[] }[];
+  error_paths: string[];
+  updated_identical: number;
+  updated_modified: number;
+}> {
   const run = startRun();
+
+  const acc = {
+	created: 0,
+	updated: 0,
+	errors: 0,
+	updated_identical: 0,
+	updated_modified: 0,
+	created_paths: [] as string[],
+	updated_identical_paths: [] as string[],
+	updated_modified_paths: [] as string[],
+	updated_modified_details: [] as { path: string; fields: string[] }[],
+	error_paths: [] as string[],
+  };
 
   try {
 	// Lecture CSV (injection du reader Vault)
@@ -82,63 +192,107 @@ export async function importWordpressCsv(
 
 	for (let i = 0; i < rows.length; i++) {
 	  const row = rows[i];
-	  let status: "created" | "updated" | "error" = "created";
 	  let path = "";
 
 	  try {
-		// 1) Mapping CSV -> master (peut jeter si entête manquante, etc.)
-		const master = mapWpRowToMaster(row);
+		// 0) Lignes vides explicites
+		const idRaw = toStr((row as any)?.wp_id);
+		const titreRaw = toStr((row as any)?.wp_titre);
+		if (!idRaw && !titreRaw) {
+		  throw new Error("ligne CSV vide (wp_id et wp_titre vides)");
+		}
 
-		// 2) Déterminer le chemin cible (idempotence par post_id)
-		const existing = await findNoteByPostId(toStr(row.wp_id), io);
+		// 1) Mapping CSV -> master
+		const master = mapWpRowToMaster(row) as any;
+
+		// 2) Règle stricte Import CSV: titre/id obligatoires
+		enforceTitleAndIdForImport(master, row);
+
+		// 3) Déterminer le chemin cible (idempotence par post_id)
+		const existing = await findNoteByPostId(toStr(master.post_id), io);
+		const nextContent = buildNoteContent(master as MasterFields);
+
 		if (existing && existing.path) {
-		  status = "updated";
 		  path = existing.path;
+
+		  // Diff contenu (identique vs modifié) + champs modifiés
+		  const changedFields = await diffChangedFields(io, path, nextContent);
+		  const identical = changedFields.length === 0;
+
+		  acc.updated += 1;
+		  if (identical) {
+			acc.updated_identical += 1;
+			acc.updated_identical_paths.push(path);
+		  } else {
+			acc.updated_modified += 1;
+			acc.updated_modified_paths.push(path);
+			acc.updated_modified_details.push({ path, fields: changedFields });
+
+			if (!opts.dryRun) await io.write(path, nextContent);
+		  }
+
+		  logLine(run, { index: i, status: "updated", path, post_id: toStr(master.post_id), identical });
 		} else {
 		  const baseName = sanitizeForFilename(
-			`${toStr((master as any).post_titre_full) || "sans-titre"}.md`
+			`${toStr(master.post_titre_full) || "sans-titre"}.md`
 		  );
 		  path = await ensureUniquePath(outDir, baseName, io.exists);
-		  status = "created";
-		}
 
-		// 3) Construire le contenu (YAML + Corps) et écrire si pas dry-run
-		const fileContent = buildNoteContent(master as MasterFields);
-		if (!opts.dryRun) {
-		  await io.write(path, fileContent);
-		}
+		  if (!opts.dryRun) await io.write(path, nextContent);
 
-		// 4) Log
-		logLine(run, {
-		  index: i,
-		  status,
-		  path,
-		  post_id: toStr(row.wp_id),
-		});
+		  acc.created += 1;
+		  acc.created_paths.push(path);
+
+		  logLine(run, { index: i, status: "created", path, post_id: toStr(master.post_id) });
+		}
 	  } catch (err: any) {
-		status = "error";
 		const msg = String(err?.message ?? err ?? "Erreur inconnue");
+		let errPath = "";
 		if (!opts.dryRun) {
-		  try {
-			path = await writeErrorNote(opts, io, row, msg);
-		  } catch {
-			/* ignore nested error */
-		  }
+		  try { errPath = await writeErrorNote(opts, io, row, msg, i); } catch { /* noop */ }
 		}
+		acc.errors += 1;
+		if (errPath) acc.error_paths.push(errPath);
+
 		logLine(run, {
 		  index: i,
 		  status: "error",
 		  message: msg,
-		  path,
-		  post_id: toStr(row?.wp_id),
+		  path: errPath,
+		  post_id: toStr((row as any)?.wp_id),
 		});
 	  }
 	}
 
-	return finishRun(run);
+	const base = finishRun(run) as any;
+	return {
+	  ...base,
+	  created: acc.created,
+	  updated: acc.updated,
+	  errors: acc.errors,
+	  updated_identical: acc.updated_identical,
+	  updated_modified: acc.updated_modified,
+	  created_paths: acc.created_paths,
+	  updated_identical_paths: acc.updated_identical_paths,
+	  updated_modified_paths: acc.updated_modified_paths,
+	  updated_modified_details: acc.updated_modified_details,
+	  error_paths: acc.error_paths,
+	};
   } catch (e: any) {
-	// Erreur au niveau CSV (lecture/parsing)
 	logLine(run, { index: -1, status: "error", message: String(e?.message ?? e) });
-	return finishRun(run);
+	const base = finishRun(run) as any;
+	return {
+	  ...base,
+	  created: 0,
+	  updated: 0,
+	  errors: 1,
+	  updated_identical: 0,
+	  updated_modified: 0,
+	  created_paths: [],
+	  updated_identical_paths: [],
+	  updated_modified_paths: [],
+	  updated_modified_details: [],
+	  error_paths: [],
+	};
   }
 }

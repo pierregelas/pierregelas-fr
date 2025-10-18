@@ -1,9 +1,9 @@
 // src/ui/commands.ts
 // Commande "Importer un CSV WordPress" + picker CSV + prévisualisation + sélection du dossier de sortie
-// Ajouts :
-//  - Dropdown de sélection de dossier dans la modale (valeur par défaut "NEW", même s'il n'existe pas)
-//  - Notice finale: "Import WP — +{created}, −{updated}, ✖{errors}"
-//  - Journal .md dans NEW/LOGS/import-YYYYMMDD-HHMMSS.md (toujours ce dossier)
+// - Notice fin: "Import WP — +{created}, −{updated} (≃ ident./modif.), ✖{errors}"
+// - Journal .md dans NEW/LOGS/import-YYYYMMDD-HHMMSS.md
+// - NEW: breakdown mises à jour (identiques / modifiées) + listes en wikilinks triés
+// - NEW: pour les "Modifiées", logue les champs modifiés après le wikilink
 
 import { App, Notice, TFile, TFolder, FileSystemAdapter, FuzzySuggestModal } from "obsidian";
 import { importWordpressCsv } from "@actions/importWordpress";
@@ -18,16 +18,21 @@ function getVaultRootAbs(app: App): string {
   }
   throw new Error("getBasePath() indisponible : FileSystemAdapter requis (desktop).");
 }
-
 function toAbs(app: App, relPath: string): string {
   const base = getVaultRootAbs(app);
   const rel = relPath.replace(/^[\/\\]+/, "");
   return `${base}/${rel}`.replace(/[\/\\]+/g, "/");
 }
-
 function toRel(app: App, absPath: string): string {
   const base = getVaultRootAbs(app);
   return absPath.replace(new RegExp(`^${base}[\\/]?`), "");
+}
+function basenameNoExt(rel: string): string {
+  const m = rel.match(/([^\/]+)\.md$/i);
+  return m ? m[1] : rel.replace(/\.md$/i, "");
+}
+function relToWikiTitleOnly(rel: string): string {
+  return `[[${basenameNoExt(rel)}]]`;
 }
 
 function makeVaultIO(app: App): VaultIO {
@@ -80,11 +85,10 @@ function listVaultFoldersRel(app: App): string[] {
   const files = app.vault.getAllLoadedFiles();
   for (const f of files) {
 	if (f instanceof TFolder) {
-	  const p = f.path.replace(/^[\/\\]+|[\/\\]+$/g, ""); // normalise
+	  const p = f.path.replace(/^[\/\\]+|[\/\\]+$/g, "");
 	  if (p) out.push(p);
 	}
   }
-  // dédup + tri
   const set = new Set(out);
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
@@ -102,13 +106,24 @@ function nowStamp(): string {
   );
 }
 
-async function writeImportLog(app: App, summary: { created: number; updated: number; errors: number }, csvAbs: string, outDirRel: string) {
+function sortedTitles(app: App, absPaths: string[]): string[] {
+  const rels = absPaths.map(p => toRel(app, p));
+  const base = rels.map(basenameNoExt);
+  base.sort((a, b) => a.localeCompare(b));
+  return base;
+}
+
+async function writeImportLog(
+  app: App,
+  summary: any, // ImportSummary étendu
+  csvAbs: string,
+  outDirRel: string
+) {
   const logsDirRel = "NEW/LOGS";
   const logsDirAbs = toAbs(app, logsDirRel);
   const exists = await app.vault.adapter.exists(toRel(app, logsDirAbs));
-  if (!exists) {
-	await app.vault.adapter.mkdir(toRel(app, logsDirAbs));
-  }
+  if (!exists) await app.vault.adapter.mkdir(toRel(app, logsDirAbs));
+
   const fileRel = `${logsDirRel}/import-${nowStamp()}.md`;
   const fileAbs = toAbs(app, fileRel);
 
@@ -120,10 +135,49 @@ async function writeImportLog(app: App, summary: { created: number; updated: num
   lines.push(`- Dossier de sortie: ${outDirRel}`);
   lines.push("");
   lines.push("## Résumé");
-  lines.push(`- Créés: ${summary.created}`);
-  lines.push(`- MAJ: ${summary.updated}`);
-  lines.push(`- Erreurs: ${summary.errors}`);
+  lines.push(`- Créés: ${summary.created ?? 0}`);
+  lines.push(`- MAJ: ${summary.updated ?? 0}`);
+  lines.push(`  - identiques: ${summary.updated_identical ?? 0}`);
+  lines.push(`  - modifiées: ${summary.updated_modified ?? 0}`);
+  lines.push(`- Erreurs: ${summary.errors ?? 0}`);
   lines.push("");
+
+  // Listes
+  const createdTitles = sortedTitles(app, summary.created_paths ?? []);
+  const updIdentTitles = sortedTitles(app, summary.updated_identical_paths ?? []);
+  const updModDetails: { path: string; fields: string[] }[] = (summary.updated_modified_details ?? []).slice();
+  // Tri logique par titre
+  updModDetails.sort((a, b) => {
+	const ta = basenameNoExt(toRel(app, a.path));
+	const tb = basenameNoExt(toRel(app, b.path));
+	return ta.localeCompare(tb);
+  });
+  const errorTitles = sortedTitles(app, summary.error_paths ?? []);
+
+  if (createdTitles.length) {
+	lines.push("## Créés");
+	for (const t of createdTitles) lines.push(`- [[${t}]]`);
+	lines.push("");
+  }
+  if (updModDetails.length) {
+	lines.push("## Modifiées");
+	for (const it of updModDetails) {
+	  const t = basenameNoExt(toRel(app, it.path));
+	  const fields = (it.fields ?? []).join(", ");
+	  lines.push(`- [[${t}]] — champs modifiés: ${fields || "(inconnu)"}`);
+	}
+	lines.push("");
+  }
+  if (updIdentTitles.length) {
+	lines.push("## Identiques");
+	for (const t of updIdentTitles) lines.push(`- [[${t}]]`);
+	lines.push("");
+  }
+  if (errorTitles.length) {
+	lines.push("## Erreurs");
+	for (const t of errorTitles) lines.push(`- [[${t}]]`);
+	lines.push("");
+  }
 
   await app.vault.adapter.write(toRel(app, fileAbs), lines.join("\n"));
 }
@@ -147,25 +201,23 @@ export function registerImportWordpressCommand(
 			return;
 		  }
 		  try {
-			// 1) Dry-run pour obtenir les comptes
 			const defaultOutRel = "NEW";
 			const folderListRel = listVaultFoldersRel(app);
 			const outDirAbsDefault = toAbs(app, defaultOutRel);
 
-			const drySummary = await importWordpressCsv(csvAbs, io, { outDirAbs: outDirAbsDefault, dryRun: true });
+			// Dry-run => calcule aussi identiques/modifiées
+			const drySummary: any = await importWordpressCsv(csvAbs, io, { outDirAbs: outDirAbsDefault, dryRun: true });
 
-			// 2) Modale de prévisualisation + sélection dossier
+			// Modale de prévisualisation + sélection dossier
 			const modal = new ImportPreviewModal(
 			  app,
 			  drySummary,
 			  async (outDirRelChosen) => {
 				const outDirAbs = toAbs(app, outDirRelChosen || defaultOutRel);
-				const summary = await importWordpressCsv(csvAbs, io, { outDirAbs, dryRun: false });
+				const summary: any = await importWordpressCsv(csvAbs, io, { outDirAbs, dryRun: false });
 
-				// Notice +n, −m, ✖e
-				new Notice(`Import WP — +${summary.created}, −${summary.updated}, ✖${summary.errors}`);
+				new Notice(`Import WP — +${summary.created}, −${summary.updated} (≃ ${summary.updated_identical} ident., ${summary.updated_modified} modif.), ✖${summary.errors}`);
 
-				// Journal .md (toujours NEW/LOGS)
 				await writeImportLog(app, summary, csvAbs, outDirRelChosen || defaultOutRel);
 			  },
 			  { folderListRel, defaultOutDirRel: defaultOutRel }
