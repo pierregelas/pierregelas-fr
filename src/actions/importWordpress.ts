@@ -1,9 +1,10 @@
 // src/actions/importWordpress.ts
-// Lecture CSV WordPress → mapping YAML maître → rendu Corps → création/MAJ de notes
+// Import CSV WordPress → mapping YAML maître → rendu Corps → création/MAJ
 // - Idempotence par post_id (findNoteByPostId)
 // - maj_wp: false (infos depuis WP)
-// - Ecrit le corps selon 'renderBodyFromMaster(master)' (Vignette / Vidéo / Notes)
-// - Erreurs: loggées; en mode exécution (non dry-run), écriture d'une note dans NEW/ERRORS
+// - Corps via renderBodyFromMaster(master): Vignette / Vidéo / Notes
+// - ensureUniquePath(..., io.exists) pour éviter les collisions
+// - Erreurs: loggées; en exécution (non dry-run), note dans NEW/ERRORS
 
 import { readCsv } from "@core/csv";
 import { mapWpRowToMaster } from "@core/mapping.wordpress";
@@ -26,7 +27,7 @@ function toStr(v: unknown): string {
 
 /** Construit le contenu d'une note à partir du master (YAML + body) */
 function buildNoteContent(master: MasterFields): string {
-  // Règle d'import : maj_wp = false (infos provenant de WP)
+  // Règle d'import : maj_wp = false (les infos proviennent de WP)
   (master as any).maj_wp = false;
   const yamlStr = emitYaml(master);
   const bodyStr = renderBodyFromMaster(master);
@@ -44,7 +45,7 @@ async function writeErrorNote(
 	`ERROR_${toStr(row.wp_id) || "?"}_${toStr(row.wp_titre) || "sans-titre"}.md`
   );
   const outDir = `${opts.outDirAbs.replace(/[\/\\]+$/, "")}/ERRORS`;
-  const dest = await ensureUniquePath(outDir, baseName);
+  const dest = await ensureUniquePath(outDir, baseName, io.exists);
 
   const yaml = [
 	"---",
@@ -72,10 +73,11 @@ export async function importWordpressCsv(
   io: VaultIO,
   opts: ImportOptions
 ): Promise<ImportSummary> {
-  const run = startRun({ kind: "import-wp", source: csvAbsPath });
+  const run = startRun();
 
   try {
-	const rows: WpRow[] = await readCsv(csvAbsPath);
+	// Lecture CSV (injection du reader Vault)
+	const rows: WpRow[] = await readCsv(csvAbsPath, (abs) => io.read(abs));
 	const outDir = opts.outDirAbs.replace(/[\\/]+$/, "");
 
 	for (let i = 0; i < rows.length; i++) {
@@ -84,19 +86,19 @@ export async function importWordpressCsv(
 	  let path = "";
 
 	  try {
-		// 1) Mapping CSV -> master
+		// 1) Mapping CSV -> master (peut jeter si entête manquante, etc.)
 		const master = mapWpRowToMaster(row);
 
 		// 2) Déterminer le chemin cible (idempotence par post_id)
-		const existing = await findNoteByPostId(io, toStr(row.wp_id));
-		if (existing) {
+		const existing = await findNoteByPostId(toStr(row.wp_id), io);
+		if (existing && existing.path) {
 		  status = "updated";
-		  path = existing;
+		  path = existing.path;
 		} else {
 		  const baseName = sanitizeForFilename(
 			`${toStr((master as any).post_titre_full) || "sans-titre"}.md`
 		  );
-		  path = await ensureUniquePath(outDir, baseName);
+		  path = await ensureUniquePath(outDir, baseName, io.exists);
 		  status = "created";
 		}
 
