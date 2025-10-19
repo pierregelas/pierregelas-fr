@@ -204,6 +204,7 @@ export function registerImportWordpressCommand(
 			const defaultOutRel = "NEW";
 			const folderListRel = listVaultFoldersRel(app);
 			const csvFileName = csvAbs.replace(/^.*[\\/]/, "");
+			const csvFileName = csvAbs.replace(/^.*[\\/]/, "");
 
 			// Dry-run => calcule aussi identiques/modifiées
 			const drySummary: any = await importWordpressCsv(csvAbs, io, { outDirAbs: outDirAbsDefault, dryRun: true });
