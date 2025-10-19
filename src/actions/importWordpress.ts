@@ -7,6 +7,7 @@
 // - Erreurs enrichies: wp_row_index, wp_titre_raw, wp_id_raw, wp_headers_debug
 // - Lignes vides: comptées comme erreurs
 // - NEW: MAJ identiques vs modifiées + détail des champs modifiés
+// - NEW 2025-10-19: écrit WP-IMPORT (wp_import_dataset_key / wp_import_dataset_id) dans la note
 
 import { readCsv } from "@core/csv";
 import { mapWpRowToMaster } from "@core/mapping.wordpress";
@@ -15,8 +16,10 @@ import { sanitizeForFilename, ensureUniquePath } from "@core/files";
 import { findNoteByPostId } from "@core/upsert";
 import { startRun, logLine, finishRun } from "@core/log";
 import { renderBodyFromMaster } from "@core/bodyRenderer";
+import { parseCsvNameV2 } from "@core/csvMeta";
 import type { ImportSummary, WpRow, MasterFields } from "@core/types";
 import type { VaultIO } from "@core/upsert";
+import { setWpImportBlock } from "../services/yamlPatch"; // chemin relatif → src/services/yamlPatch.ts
 
 export interface ImportOptions {
   outDirAbs: string;
@@ -27,10 +30,13 @@ function toStr(v: unknown): string {
   return (v ?? "").toString().trim();
 }
 
+function basename(p: string): string {
+  // Récupère le dernier segment d'un chemin (support / et \)
+  return (p ?? "").replace(/^[\s\S]*[\/\\]/, "");
+}
+
 /** Construit le contenu d'une note à partir du master (YAML + body) */
 function buildNoteContent(master: MasterFields): string {
-  // Import = source WP
-  (master as any).maj_wp = false;
   const yamlStr = emitYaml(master);
   const bodyStr = renderBodyFromMaster(master);
   return `${yamlStr}\n${bodyStr}`;
@@ -70,7 +76,9 @@ async function writeErrorNote(
   ].join("\n");
 
   const body = `## Erreur d'import\n\n${message}`;
-  await io.write(dest, `${yaml}\n${body}`);
+  if (!opts.dryRun) {
+	await io.write(dest, `${yaml}\n${body}`);
+  }
   return dest;
 }
 
@@ -156,6 +164,10 @@ async function diffChangedFields(io: VaultIO, absPath: string, nextContent: stri
  * - updated_modified_details[]: { path, fields: string[] }
  * - error_paths[]
  * ainsi que les compteurs updated_identical / updated_modified.
+ *
+ * NEW 2025-10-19:
+ * - Parse du nom CSV v2 "<dataset_key>_<YYYYMMDD>_PG.csv"
+ * - Écriture WP-IMPORT dans chaque note (wp_import_dataset_key / wp_import_dataset_id)
  */
 export async function importWordpressCsv(
   csvAbsPath: string,
@@ -171,6 +183,34 @@ export async function importWordpressCsv(
   updated_modified: number;
 }> {
   const run = startRun();
+
+  // Parse strict du nom CSV v2 (ex.: "minutes-articles_20251018_PG.csv")
+  const csvName = basename(csvAbsPath);
+  let datasetKey: string | undefined;
+  let datasetId: number | undefined;
+  try {
+	const parsed = parseCsvNameV2(csvName);
+	datasetKey = parsed.datasetKey;
+	datasetId = parsed.datasetId;
+  } catch (e: any) {
+	// Par sécurité, si on arrive ici, on considère que la modale aurait dû bloquer.
+	// On remonte une erreur claire pour éviter un import incohérent.
+	logLine(run, { index: -1, status: "error", message: `Nom CSV invalide: ${String(e?.message ?? e)}` });
+	const base = finishRun(run) as any;
+	return {
+	  ...base,
+	  created: 0,
+	  updated: 0,
+	  errors: 1,
+	  updated_identical: 0,
+	  updated_modified: 0,
+	  created_paths: [],
+	  updated_identical_paths: [],
+	  updated_modified_paths: [],
+	  updated_modified_details: [],
+	  error_paths: [],
+	};
+  }
 
   const acc = {
 	created: 0,
@@ -208,7 +248,15 @@ export async function importWordpressCsv(
 		// 2) Règle stricte Import CSV: titre/id obligatoires
 		enforceTitleAndIdForImport(master, row);
 
-		// 3) Déterminer le chemin cible (idempotence par post_id)
+		// 3) Marquer la source (maj_wp côté import WP = false)
+		(master as any).maj_wp = false;
+
+		// 4) Écrire WP-IMPORT (famille/ID) dans le master **avant** sérialisation
+		if (datasetKey && typeof datasetId === "number") {
+		  setWpImportBlock(master as any, { datasetKey, datasetId });
+		}
+
+		// 5) Déterminer le chemin cible (idempotence par post_id)
 		const existing = await findNoteByPostId(toStr(master.post_id), io);
 		const nextContent = buildNoteContent(master as MasterFields);
 
@@ -231,11 +279,15 @@ export async function importWordpressCsv(
 			if (!opts.dryRun) await io.write(path, nextContent);
 		  }
 
-		  logLine(run, { index: i, status: "updated", path, post_id: toStr(master.post_id), identical });
+		  logLine(run, {
+			index: i,
+			status: "updated",
+			path,
+			post_id: toStr(master.post_id),
+			identical
+		  });
 		} else {
-		  const baseName = sanitizeForFilename(
-			`${toStr(master.post_titre_full) || "sans-titre"}.md`
-		  );
+		  const baseName = sanitizeForFilename(`${toStr(master.post_titre_full) || "sans-titre"}.md`);
 		  path = await ensureUniquePath(outDir, baseName, io.exists);
 
 		  if (!opts.dryRun) await io.write(path, nextContent);

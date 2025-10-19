@@ -1,6 +1,7 @@
 // src/services/yamlPatch.ts
 // 1) applyYamlPatch: Patch YAML frontmatter en conservant les types (bool, number, string) via js-yaml.
 // 2) patchTagsAndMaj: Patch ciblé des tags qui PRÉSERVE le YAML maître (sections, ordre) et force maj_wp: true si changement.
+// 3) setWpImportBlock / patchWpImportBlock: écriture des champs WP-IMPORT (anti-régression CSV) en mémoire ou sur fichier.
 
 import { load as yamlLoad, dump as yamlDump } from "js-yaml";
 import type { VaultIO } from "@core/upsert";
@@ -11,7 +12,8 @@ import { YAML_SECTION_LINES } from "@core/yamlMaster";
  * - Les booléens et nombres sont conservés comme types natifs (pas de guillemets).
  * - Si le document n’a pas de YAML, on en crée un minimal avec uniquement les clés mises à jour.
  * - ⚠️ Cette fonction ré-émet le YAML sans les lignes de sections (IMAGES:/LIEN:/MAJ:/POST:/WP:).
- *   Si tu veux préserver ces sections, utilise patchTagsAndMaj pour le cas des tags.
+ *   Si tu veux préserver ces sections, utilise patchTagsAndMaj pour le cas des tags
+ *   ou patchWpImportBlock pour WP-IMPORT.
  */
 export function applyYamlPatch(
   raw: string,
@@ -283,4 +285,129 @@ function tagsPatch_dedupeKeepOrder(arr: string[]): string[] {
 	out.push(v);
   }
   return out;
+}
+
+/* =================================================================================================
+   WP-IMPORT — écriture des champs anti-régression (famille / ID) en mémoire ou sur fichier
+================================================================================================= */
+
+/**
+ * Écrit en mémoire (objet frontmatter) les 2 clés WP-IMPORT.
+ * À utiliser quand tu disposes déjà d'un FM objet (ex: pendant la construction du YAML).
+ */
+export function setWpImportBlock(
+  fm: Record<string, any>,
+  data: { datasetKey: string; datasetId: number }
+): void {
+  fm["wp_import_dataset_key"] = data.datasetKey;
+  fm["wp_import_dataset_id"] = Number(data.datasetId);
+}
+
+/**
+ * Patch sur fichier (préserve les sections YAML maître).
+ * - Crée ou remplace le bloc sous la section "WP-IMPORT".
+ * - Retourne "unchanged" si les deux valeurs étaient déjà identiques.
+ */
+export async function patchWpImportBlock(
+  noteAbsPath: string,
+  datasetKey: string,
+  datasetId: number,
+  io: VaultIO
+): Promise<"changed" | "unchanged"> {
+  const raw = await io.read(noteAbsPath);
+  const { fmStart, fmEnd, fm, body } = tagsPatch_extractFrontmatter(raw);
+
+  const desiredKey = String(datasetKey);
+  const desiredId = Number(datasetId);
+
+  if (!fm) {
+	// Pas de frontmatter → on crée un FM minimal avec WP-IMPORT uniquement.
+	const minimal = wpImport_buildMinimalFrontmatter(desiredKey, desiredId);
+	await io.write(noteAbsPath, minimal + "\n" + body);
+	return "changed";
+  }
+
+  const current = wpImport_parseValues(fm);
+  if (current.key === desiredKey && current.id === desiredId) {
+	return "unchanged";
+  }
+
+  const fmFinal = wpImport_replaceOrInsertBlock(fm, desiredKey, desiredId);
+  const next = tagsPatch_assembleDocument(raw, fmStart, fmEnd, fmFinal);
+  await io.write(noteAbsPath, next);
+  return "changed";
+}
+
+/* ─────────────────────────── helpers WP-IMPORT (préfixés) ─────────────────────────── */
+
+function wpImport_buildMinimalFrontmatter(key: string, id: number): string {
+  const header = YAML_SECTION_LINES.WP_IMPORT
+	?? "WP-IMPORT: ______________________________________________________________________";
+  const out: string[] = [];
+  out.push("---");
+  out.push(header);
+  out.push(`wp_import_dataset_key: ${key}`);
+  out.push(`wp_import_dataset_id: ${id}`);
+  out.push("---");
+  return out.join("\n");
+}
+
+function wpImport_parseValues(fm: string): { key?: string; id?: number } {
+  const lines = fm.replace(/\r\n?/g, "\n").split("\n");
+  let key: string | undefined;
+  let id: number | undefined;
+
+  for (const L of lines) {
+	const mKey = L.match(/^[ \t]*wp_import_dataset_key[ \t]*:\s*(.+)\s*$/);
+	if (mKey && !key) key = stripQuotes(mKey[1]);
+
+	const mId = L.match(/^[ \t]*wp_import_dataset_id[ \t]*:\s*(\d+)\s*$/);
+	if (mId && id === undefined) id = Number(mId[1]);
+  }
+
+  return { key, id };
+}
+
+function wpImport_replaceOrInsertBlock(fm: string, key: string, id: number): string {
+  const lines = fm.replace(/\r\n?/g, "\n").split("\n");
+
+  const headerIdx = lines.findIndex(l => /^WP-IMPORT:/.test(l));
+  let keyIdx = -1;
+  let idIdx = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+	const L = lines[i];
+	if (keyIdx < 0 && /^[ \t]*wp_import_dataset_key[ \t]*:/.test(L)) keyIdx = i;
+	if (idIdx < 0 && /^[ \t]*wp_import_dataset_id[ \t]*:/.test(L)) idIdx = i;
+  }
+
+  // Remplacements si déjà présents
+  if (keyIdx >= 0) lines[keyIdx] = `wp_import_dataset_key: ${key}`;
+  if (idIdx >= 0) lines[idIdx] = `wp_import_dataset_id: ${id}`;
+
+  // Si l'un ou l'autre manque, on (ré)insère proprement sous WP-IMPORT ou à défaut en fin de FM
+  const missing: string[] = [];
+  if (keyIdx < 0) missing.push(`wp_import_dataset_key: ${key}`);
+  if (idIdx < 0) missing.push(`wp_import_dataset_id: ${id}`);
+
+  if (missing.length > 0) {
+	if (headerIdx >= 0) {
+	  return tagsPatch_insertAfter(lines, headerIdx, missing).join("\n");
+	} else {
+	  const header = YAML_SECTION_LINES.WP_IMPORT
+		?? "WP-IMPORT: ______________________________________________________________________";
+	  return lines.concat([header, ...missing]).join("\n");
+	}
+  }
+
+  return lines.join("\n");
+}
+
+function stripQuotes(s: string): string {
+  const t = s.trim();
+  const dq = t.match(/^"(.*)"$/);
+  if (dq) return dq[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  const sq = t.match(/^'(.*)'$/);
+  if (sq) return sq[1];
+  return t;
 }
