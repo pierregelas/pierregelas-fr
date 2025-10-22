@@ -193,9 +193,29 @@ async function writeImportLog(
 	lines.push("");
   }
   if (errorTitles.length) {
-	lines.push("## Erreurs");
-	for (const t of errorTitles) lines.push(`- [[${t}]]`);
-	lines.push("");
+	  const records: ImportErrorRecord[] = Array.isArray(summary.error_records)
+		? summary.error_records.filter((r): r is ImportErrorRecord => !!r)
+		: [];
+	  const toText = (v: unknown) => (v === undefined || v === null ? "" : String(v));
+
+	  if (records.length) {
+		lines.push("## Erreurs");
+		for (const rec of records) {
+		  const wiki = (rec.errorFileWikilink ?? "").trim() || "[[?]]";
+		  lines.push(`- ${wiki}`);
+		  lines.push(`\t- wp_error: ${toText(rec.wp_error)}`);
+		  lines.push(`\t- post-id: ${toText(rec.post_id)}`);
+		  lines.push(`\t- wp_row_index: ${toText(rec.wp_row_index)}`);
+		  lines.push(`\t- wp_id_raw: ${toText(rec.wp_id_raw)}`);
+		  lines.push(`\t- wp_titre_raw: ${toText(rec.wp_titre_raw)}`);
+		  lines.push(`\t- error_type: ${toText(rec.error_type)}`);
+		}
+		lines.push("");
+	  } else if (errorTitles.length) {
+		lines.push("## Erreurs");
+		for (const t of errorTitles) lines.push(`- [[${t}]]`);
+		lines.push("");
+	  }
   }
 
   await app.vault.adapter.write(toRel(app, fileAbs), lines.join("\n"));
