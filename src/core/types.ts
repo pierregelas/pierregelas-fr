@@ -83,18 +83,29 @@ export interface MasterFields {
 	  post_id?: string;
 	}
 
-	export interface ImportSummary {
-	  created: number;
-	  updated: number;
-	  errors: number;
-	  lines: ImportLineLog[];
+export interface ImportErrorRecord {
+  wp_error: string;
+  post_id: string;
+  wp_row_index: number;
+  wp_id_raw: string;
+  wp_titre_raw: string;
+  error_type: string;
+  errorFileWikilink: string;
+}
 
-	  totalCsvEntries?: number;
-	  updated_identical?: number;
-	  updated_modified?: number;
-	  created_paths?: string[];
-	  updated_identical_paths?: string[];
-	  updated_modified_paths?: string[];
-	  updated_modified_details?: { path: string; fields: string[] }[];
-	  error_paths?: string[];
-	}
+export interface ImportSummary {
+  created: number;
+  updated: number;
+  errors: number;
+  lines: ImportLineLog[];
+
+  totalCsvEntries?: number;
+  updated_identical?: number;
+  updated_modified?: number;
+  created_paths?: string[];
+  updated_identical_paths?: string[];
+  updated_modified_paths?: string[];
+  updated_modified_details?: { path: string; fields: string[] }[];
+  error_paths?: string[];
+  error_records?: ImportErrorRecord[];
+}

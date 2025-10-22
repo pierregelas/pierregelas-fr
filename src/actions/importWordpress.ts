@@ -17,7 +17,7 @@ import { findNoteByPostId } from "@core/upsert";
 import { startRun, logLine, finishRun } from "@core/log";
 import { renderBodyFromMaster } from "@core/bodyRenderer";
 import { parseCsvNameV2 } from "@core/csvMeta";
-import type { ImportSummary, WpRow, MasterFields } from "@core/types";
+import type { ImportSummary, WpRow, MasterFields, ImportErrorRecord } from "@core/types";
 import type { VaultIO } from "@core/upsert";
 import { setWpImportBlock } from "../services/yamlPatch"; // chemin relatif → src/services/yamlPatch.ts
 
@@ -80,6 +80,19 @@ async function writeErrorNote(
 	await io.write(dest, `${yaml}\n${body}`);
   }
   return dest;
+}
+
+function inferErrorType(message: string): string {
+  const normalized = (message ?? "").toLowerCase();
+  if (normalized.includes("ligne csv vide")) return "LIGNE_VIDE";
+  if (normalized.includes("post_titre_full manquant")) return "TITRE_MANQUANT";
+  if (normalized.includes("post_id invalide")) return "ID_INVALIDE";
+  if (normalized.includes("post_id manquant")) return "ID_INVALIDE";
+  return "";
+}
+
+function rawString(value: unknown): string {
+  return value === undefined || value === null ? "" : String(value);
 }
 
 /** Validation stricte (spécifique Import CSV): wp_titre → post_titre_full, wp_id → post_id, obligatoires. */
@@ -181,8 +194,10 @@ export async function importWordpressCsv(
   error_paths: string[];
   updated_identical: number;
   updated_modified: number;
+  error_records: ImportErrorRecord[];
 }> {
   const run = startRun();
+  const errorRecords: ImportErrorRecord[] = [];
 
   // Parse strict du nom CSV v2 (ex.: "minutes-articles_20251018_PG.csv")
   const csvName = basename(csvAbsPath);
@@ -197,19 +212,20 @@ export async function importWordpressCsv(
 	// On remonte une erreur claire pour éviter un import incohérent.
 	logLine(run, { index: -1, status: "error", message: `Nom CSV invalide: ${String(e?.message ?? e)}` });
 	const base = finishRun(run) as any;
-	return {
-	  ...base,
-	  created: 0,
-	  updated: 0,
-	  errors: 1,
-	  updated_identical: 0,
-	  updated_modified: 0,
-	  created_paths: [],
-	  updated_identical_paths: [],
-	  updated_modified_paths: [],
-	  updated_modified_details: [],
-	  error_paths: [],
-	};
+	  return {
+		 ...base,
+		 created: 0,
+		 updated: 0,
+		 errors: 1,
+		 updated_identical: 0,
+		 updated_modified: 0,
+		 created_paths: [],
+		 updated_identical_paths: [],
+		 updated_modified_paths: [],
+		 updated_modified_details: [],
+		 error_paths: [],
+		 error_records: errorRecords,
+	   };
   }
 
   const acc = {
@@ -227,21 +243,27 @@ export async function importWordpressCsv(
 
   try {
 	// Lecture CSV (injection du reader Vault)
-	const rows: WpRow[] = await readCsv(csvAbsPath, (abs) => io.read(abs));
-	const outDir = opts.outDirAbs.replace(/[\\/]+$/, "");
+	  const rows: WpRow[] = await readCsv(csvAbsPath, (abs) => io.read(abs));
+	  const outDir = opts.outDirAbs.replace(/[\\/]+$/, "");
 
-	for (let i = 0; i < rows.length; i++) {
-	  const row = rows[i];
-	  let path = "";
+	  for (let i = 0; i < rows.length; i++) {
+		const row = rows[i];
+		let path = "";
 
-	  try {
-		// 0) Lignes vides explicites
-		const idRaw = toStr((row as any)?.wp_id);
-		const titreRaw = toStr((row as any)?.wp_titre);
-		if (!idRaw && !titreRaw) {
-		  throw new Error("ligne CSV vide (wp_id et wp_titre vides)");
-		}
+		try {
+			  // 0) Lignes vides explicites
+			  const idRawOriginal = rawString((row as any)?.wp_id);
+			  const titreRawOriginal = rawString((row as any)?.wp_titre);
+			  const idRaw = toStr(idRawOriginal);
+			  const titreRaw = toStr(titreRawOriginal);
+			  if (!idRaw && !titreRaw) {
+				throw new Error("ligne CSV vide (wp_id et wp_titre vides)");
+			  }
 
+			  const idForValidation = idRawOriginal.trim();
+			  if (idForValidation && !/^\d+$/.test(idForValidation)) {
+				throw new Error("post_id invalide (wp_id non numérique)");
+			  }
 		// 1) Mapping CSV -> master
 		const master = mapWpRowToMaster(row) as any;
 
@@ -298,25 +320,36 @@ export async function importWordpressCsv(
 		  logLine(run, { index: i, status: "created", path, post_id: toStr(master.post_id) });
 		}
 	  } catch (err: any) {
-		const msg = String(err?.message ?? err ?? "Erreur inconnue");
-		let errPath = "";
-		if (!opts.dryRun) {
-		  try { errPath = await writeErrorNote(opts, io, row, msg, i); } catch { /* noop */ }
-		}
-		acc.errors += 1;
-		if (errPath) acc.error_paths.push(errPath);
+			const msg = String(err?.message ?? err ?? "Erreur inconnue");
+			let errPath = "";
+			if (!opts.dryRun) {
+			  try { errPath = await writeErrorNote(opts, io, row, msg, i); } catch { /* noop */ }
+			}
+			const errorFileName = errPath ? basename(errPath) : "";
+			const errorWiki = errorFileName ? `[[${errorFileName.replace(/\.md$/i, "")}]]` : "";
+			errorRecords.push({
+			  wp_error: msg,
+			  post_id: toStr((row as any)?.wp_id),
+			  wp_row_index: i,
+			  wp_id_raw: rawString((row as any)?.wp_id),
+			  wp_titre_raw: rawString((row as any)?.wp_titre),
+			  error_type: inferErrorType(msg),
+			  errorFileWikilink: errorWiki,
+			});
+			acc.errors += 1;
+			if (errPath) acc.error_paths.push(errPath);
 
-		logLine(run, {
-		  index: i,
-		  status: "error",
-		  message: msg,
-		  path: errPath,
-		  post_id: toStr((row as any)?.wp_id),
-		});
-	  }
-	}
+			logLine(run, {
+			  index: i,
+	  status: "error",
+	  message: msg,
+	  path: errPath,
+	  post_id: toStr((row as any)?.wp_id),
+	});
+  }
+}
 
-	const base = finishRun(run) as any;
+const base = finishRun(run) as any;
 	return {
 	  ...base,
 	  created: acc.created,
@@ -329,8 +362,9 @@ export async function importWordpressCsv(
 	  updated_modified_paths: acc.updated_modified_paths,
 	  updated_modified_details: acc.updated_modified_details,
 	  error_paths: acc.error_paths,
+	  error_records: errorRecords,
 	};
-  } catch (e: any) {
+} catch (e: any) {
 	logLine(run, { index: -1, status: "error", message: String(e?.message ?? e) });
 	const base = finishRun(run) as any;
 	return {
@@ -345,6 +379,7 @@ export async function importWordpressCsv(
 	  updated_modified_paths: [],
 	  updated_modified_details: [],
 	  error_paths: [],
+	  error_records: errorRecords,
 	};
-  }
+}
 }

@@ -7,6 +7,7 @@
 
 import { App, Notice, TFile, TFolder, FileSystemAdapter, FuzzySuggestModal } from "obsidian";
 import { importWordpressCsv } from "@actions/importWordpress";
+import type { ImportErrorRecord } from "@core/types";
 import type { VaultIO } from "@core/upsert";
 import { ImportPreviewModal } from "./previewModal";
 
@@ -152,7 +153,25 @@ async function writeImportLog(
 	const tb = basenameNoExt(toRel(app, b.path));
 	return ta.localeCompare(tb);
   });
-  const errorTitles = sortedTitles(app, summary.error_paths ?? []);
+	const errorPaths: string[] = summary.error_paths ?? [];
+	const errorTitles = sortedTitles(app, errorPaths);
+	const errorRecords: ImportErrorRecord[] = Array.isArray(summary.error_records)
+		  ? summary.error_records.filter((rec): rec is ImportErrorRecord => !!rec)
+		  : [];
+	const errorRecordItems = errorRecords.map((rec, idx) => {
+		  const fallbackWiki = errorPaths[idx]
+			? `[[${basenameNoExt(toRel(app, errorPaths[idx]))}]]`
+			: "";
+		  const wiki = (rec.errorFileWikilink ?? "").trim() || fallbackWiki;
+		  return {
+			...rec,
+			wiki,
+		  };
+	});
+	const normalizeWiki = (wiki: string) => wiki.replace(/^\[\[/, "").replace(/\]\]$/, "");
+	errorRecordItems.sort((a, b) => normalizeWiki(a.wiki).localeCompare(normalizeWiki(b.wiki)));
+
+	const toText = (value: unknown) => (value === undefined || value === null ? "" : String(value));
 
   if (createdTitles.length) {
 	lines.push("## Créés");
