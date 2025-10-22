@@ -242,8 +242,23 @@ export async function importWordpressCsv(
   };
 
   try {
-	// Lecture CSV (injection du reader Vault)
-	  const rows: WpRow[] = await readCsv(csvAbsPath, (abs) => io.read(abs));
+	  // Lecture CSV (injection du reader Vault)
+	  // Force explicit separateur ";" (ajoute/remplace directive `sep=;`) pour éviter les champs vides causés
+	  // par une détection erronée en ",".
+		const rows: WpRow[] = await readCsv(csvAbsPath, async (abs) => {
+			  const raw = await io.read(abs);
+			  const hasBom = raw.charCodeAt(0) === 0xfeff;
+			  const withoutBom = hasBom ? raw.slice(1) : raw;
+			  if (/^\s*sep=;/i.test(withoutBom)) {
+				return hasBom ? `\uFEFF${withoutBom}` : withoutBom;
+			  }
+			  const normalized = withoutBom.replace(/^\s*sep=,/i, "sep=;");
+			  if (/^\s*sep=;/i.test(normalized)) {
+				return hasBom ? `\uFEFF${normalized}` : normalized;
+			  }
+			  const updated = `sep=;\n${normalized}`;
+			  return hasBom ? `\uFEFF${updated}` : updated;
+		});
 	  const outDir = opts.outDirAbs.replace(/[\\/]+$/, "");
 
 	  for (let i = 0; i < rows.length; i++) {
