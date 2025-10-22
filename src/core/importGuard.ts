@@ -23,13 +23,19 @@ export async function findLatestImportId(app: App, datasetKey: string): Promise<
 	const fm = cache?.frontmatter as any | undefined;
 	if (!fm) continue;
 
-	const key = fm["wp_import_dataset_key"];
-	const id = fm["wp_import_dataset_id"];
+		const key = fm["wp_import_dataset_key"];
+		const rawId = fm["wp_import_dataset_id"];
+		const id =
+		  typeof rawId === "number"
+			? rawId
+			: typeof rawId === "string" && /^\d+$/.test(rawId.trim())
+			? Number(rawId.trim())
+			: undefined;
 
-	if (key === datasetKey && typeof id === "number" && Number.isFinite(id)) {
-	  if (latestId === undefined || id > latestId) {
-		latestId = id;
-		latestFile = f;
+		if (key === datasetKey && typeof id === "number" && Number.isFinite(id)) {
+		  if (latestId === undefined || id > latestId) {
+				latestId = id;
+				latestFile = f;
 	  }
 	}
   }

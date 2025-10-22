@@ -7,6 +7,7 @@ export const YAML_SECTION_LINES = {
   MAJ:    "MAJ: ______________________________________________________________________",
   POST:   "POST: ______________________________________________________________________",
   WP:     "WP: ______________________________________________________________________",
+  WP_IMPORT: "WP-IMPORT: ______________________________________________________________________",
 } as const;
 
 export interface EmitOptions {
@@ -27,8 +28,9 @@ function emitList(key: string, arr: string[], quoted = false): string[] {
   return [`${key}:`, ...toYamlList(arr, quoted)];
 }
 
-function emitScalar(key: string, value: string | null | boolean): string {
+function emitScalar(key: string, value: string | number | null | boolean): string {
   if (typeof value === "boolean") return `${key}: ${value ? "true" : "false"}`;
+  if (typeof value === "number" && Number.isFinite(value)) return `${key}: ${value}`;
   // null ou chaîne vide ⇒ clé présente mais vide
   if (value == null || String(value).length === 0) return `${key}:`;
   return `${key}: ${value}`;
@@ -85,6 +87,17 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   out.push(emitScalar("wp_carnet_link", master.wp_carnet_link));
   out.push(emitScalar("wp_carnet_on", master.wp_carnet_on));
   out.push(emitScalar("wp_status", master.wp_status));
+
+	if (
+		  master.wp_import_dataset_key != null &&
+		  String(master.wp_import_dataset_key).length > 0 &&
+		  master.wp_import_dataset_id != null &&
+		  Number.isFinite(master.wp_import_dataset_id)
+	) {
+		  out.push(YAML_SECTION_LINES.WP_IMPORT);
+		  out.push(`wp_import_dataset_key: ${master.wp_import_dataset_key}`);
+		  out.push(`wp_import_dataset_id: ${Number(master.wp_import_dataset_id)}`);
+	}
 
   out.push("---");
   return out.join("\n");

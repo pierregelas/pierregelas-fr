@@ -88,16 +88,11 @@ export class ImportPreviewModal extends Modal {
 	}
 
 	// Chips récap (+ créés / − maj / × erreurs)
-	const chipsRow = contentEl.createDiv({ cls: "chips-row" });
-	const created = safeInt(
-	  (this.summary as any).createdCount ?? (this.summary as any).createCount ?? (this.summary as any).plus ?? 0
-	);
-	const updated = safeInt(
-	  (this.summary as any).updateCount ?? (this.summary as any).minus ?? 0
-	);
-	const errors = safeInt(
-	  (this.summary as any).errorCount ?? (this.summary as any).errors ?? 0
-	);
+	  const chipsRow = contentEl.createDiv({ cls: "chips-row" });
+	  const created = safeInt(this.summary.created);
+	  const updated = safeInt(this.summary.updated);
+	  const errors = safeInt(this.summary.errors);
+
 	this.createChip(chipsRow, `+${created}`);
 	this.createChip(chipsRow, `-${updated}`);
 	this.createChip(chipsRow, `× ${errors}`, "chip-errors");
@@ -106,32 +101,31 @@ export class ImportPreviewModal extends Modal {
 	const recap = contentEl.createDiv({ cls: "recap-grid" });
 
 	// Total hors en-tête
-	const totalNoHeader =
-	  (this.summary as any).totalCsvEntries ??
-	  (this.summary as any).totalRowsNoHeader ??
-	  (() => {
-		const c = safeInt(created);
-		const u = safeInt(updated);
-		const e = safeInt(errors);
-		return c + u + e;
-	  })();
-
+	  const totalNoHeader = safeInt(
+		this.summary.totalCsvEntries ??
+		(this.summary as any).totalRowsNoHeader ??
+		(created + updated + errors)
+	  );
 	recap.createEl("div", {
 	  text: `Nombre d’entrées CSV (hors en-tête) : ${totalNoHeader} (créés + MAJ + erreurs)`
 	});
 
 	// Breakdown des MAJ : identiques / modifiées
-	const same =
-	  (this.summary as any).updateIdenticalCount ??
-	  (this.summary as any).identiques ??
-	  (this.summary as any).sameCount ??
-	  0;
+	  const same = safeInt(
+		this.summary.updated_identical ??
+		  (this.summary as any).updateIdenticalCount ??
+		  (this.summary as any).identiques ??
+		  (this.summary as any).sameCount ??
+		  0
+	  );
 
-	const changed =
-	  (this.summary as any).updateModifiedCount ??
-	  (this.summary as any).modifiees ??
-	  (this.summary as any).changedCount ??
-	  Math.max(0, updated - safeInt(same));
+	  const changed = safeInt(
+		this.summary.updated_modified ??
+		  (this.summary as any).updateModifiedCount ??
+		  (this.summary as any).modifiees ??
+		  (this.summary as any).changedCount ??
+		  Math.max(0, updated - safeInt(same))
+	  );
 
 	recap.createEl("div", { text: `Notes à créer : ${created}` });
 	recap.createEl("div", { text: `Notes à mettre à jour : ${updated}` });

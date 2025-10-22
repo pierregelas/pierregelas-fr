@@ -42,46 +42,59 @@ export interface MasterFields {
 
   // LIEN
   lien_archives: string | null;
-  lien_journal: string | null;
-  lien_projet: string[];       // ex.: '[[Vidéo]]'
-  lien_restes: string | null;
+	lien_journal: string | null;
+	  lien_projet: string[];       // ex.: '[[Vidéo]]'
+	  lien_restes: string | null;
 
-  // MAJ
-  maj_wp: boolean;
+	  // MAJ
+	  maj_wp: boolean;
 
-  // POST
-  post_cat: string[];          // names (non-slugs), hiérarchie aplatie
-  post_date: IsoString;
-  post_descr: string | null;
-  post_extrait: string | null;
-  post_id: string;
-  post_mod: IsoString;
-  post_perma: string | null;
-  post_titre_1: string | null;
-  post_titre_2: string | null;
-  post_titre_full: string;
-  post_vid_url: string | null;
-  tags: string[];              // slugifiés façon WordPress
+	  // POST
+	  post_cat: string[];          // names (non-slugs), hiérarchie aplatie
+	  post_date: IsoString;
+	  post_descr: string | null;
+	  post_extrait: string | null;
+	  post_id: string;
+	  post_mod: IsoString;
+	  post_perma: string | null;
+	  post_titre_1: string | null;
+	  post_titre_2: string | null;
+	  post_titre_full: string;
+	  post_vid_url: string | null;
+	  tags: string[];              // slugifiés façon WordPress
 
-  // WP
-  wp_carnet_link: string | null;
-  wp_carnet_on: boolean;
-  wp_status: string | null;
-}
+	  // WP
+	  wp_carnet_link: string | null;
+	  wp_carnet_on: boolean;
+	  wp_status: string | null;
 
-export type MappingStatus = "created" | "updated" | "error";
+	  // WP-IMPORT (anti-régression CSV)
+	  wp_import_dataset_key?: string | null;
+	  wp_import_dataset_id?: number | null;
+	}
 
-export interface ImportLineLog {
-  index: number;               // index de la ligne CSV (0-based)
-  status: MappingStatus;
-  message?: string;
-  path?: string;               // chemin de la note écrite/mise à jour
-  post_id?: string;
-}
+	export type MappingStatus = "created" | "updated" | "error";
 
-export interface ImportSummary {
-  created: number;
-  updated: number;
-  errors: number;
-  lines: ImportLineLog[];
-}
+	export interface ImportLineLog {
+	  index: number;               // index de la ligne CSV (0-based)
+	  status: MappingStatus;
+	  message?: string;
+	  path?: string;               // chemin de la note écrite/mise à jour
+	  post_id?: string;
+	}
+
+	export interface ImportSummary {
+	  created: number;
+	  updated: number;
+	  errors: number;
+	  lines: ImportLineLog[];
+
+	  totalCsvEntries?: number;
+	  updated_identical?: number;
+	  updated_modified?: number;
+	  created_paths?: string[];
+	  updated_identical_paths?: string[];
+	  updated_modified_paths?: string[];
+	  updated_modified_details?: { path: string; fields: string[] }[];
+	  error_paths?: string[];
+	}
