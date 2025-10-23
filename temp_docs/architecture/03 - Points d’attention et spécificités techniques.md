@@ -10,10 +10,10 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
 - Les champs multiligne comme `img_legende` sont sérialisés en YAML via des blocs littéraux (`|`) avec indentation standard, assurant leur validité dans le frontmatter Obsidian.
 
 ## Feuille de route de migration (commands → actions)
-- Étape 1 — Minutes: déplacer `src/commands/minutes.ts` vers `src/actions/minutes.ts`, adopter `ImportSummary` et écrire un journal homogène (structure identique à l’import WP).
-- Étape 2 — Journal: migrer `src/commands/journal.ts` et `journalRecalc.ts` vers `src/actions/journal*.ts`, factoriser les utilitaires dans `core/journalUtils.ts`.
-- Étape 3 — Archives: migrer `src/commands/archives.ts` vers `src/actions/archives.ts`, isoler les dépendances d’archives dans `services/archivesUtils.ts`.
-- Étape 4 — ModifyNote & Restes: normaliser `modifyNote.ts` et `restes.ts` en actions, adopter `ImportSummary` et la sortie journal Markdown unifiée.
+- Étape 1 — Minutes : migrée vers `src/actions/createMinutes.ts` (MasterFields + YAML maître unifié).
+- Étape 2 — Journal : `src/actions/createJournal.ts` + `journalRecalc.ts` utilisent désormais `buildYamlMaster` (cf. utils journal).
+- Étape 3 — Archives : `src/actions/createArchives.ts` gère P1/P2 avec diff modale et YAML maître.
+- Étape 4 — Restes : `src/actions/createRestes.ts` couvre P1/P2. ModifyNote reste à finaliser côté journaux.
 - Étape 5 — Logger: évaluer la fusion “UI log writer” et “services/actionLogger.ts” sous une interface commune si les cibles de dossiers convergent.
 
 ## Références croisées internes

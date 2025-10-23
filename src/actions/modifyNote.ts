@@ -1,4 +1,4 @@
-// src/commands/modifyNote.ts
+// src/actions/modifyNote.ts
 // Commande palette: "Modifier une note (v0.1 tags)"
 // - Note active obligatoire (TFile .md)
 // - Charge la table /wp_tags/ob_tags_table.md (colonne ob_tags_slug)

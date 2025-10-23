@@ -1,4 +1,4 @@
-// src/commands/journalRecalc.ts
+// src/actions/journalRecalc.ts
 // Commande: "Journal → Recalculer titres depuis post_titre_1"
 
 import type { Plugin, TFile } from "obsidian";

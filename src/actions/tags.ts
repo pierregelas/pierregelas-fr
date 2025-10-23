@@ -1,4 +1,4 @@
-// src/commands/tags.ts (v2 + logger conditionnel, modale toujours affichée)
+// src/actions/tags.ts (v2 + logger conditionnel, modale toujours affichée)
 // Commande: Tags → Mettre à jour depuis le dernier CSV (WP → Obsidian)
 
 import type { Plugin, TFile } from "obsidian";

@@ -3,7 +3,7 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
 
 1. **UI** `ui/commands.ts`
 
-- Commande palette “Importer un CSV WordPress”
+ - Commande palette “Importer un CSV WordPress”
 - Pick du `.csv` → **dry-run** (prévisualisation), choix du dossier (par défaut `NEW/`).
 
 2. **Action** `actions/importWordpress.ts`
@@ -28,7 +28,7 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
         _(Sans ligne vide entre items.)_
         
 
-### 🗂️ Flux : Archives (`src/commands/archives.ts`)
+### 🗂️ Flux : Archives (`src/actions/createArchives.ts`)
 
 - Action destinée à **gérer les fichiers d’archives** issus de WordPress ou du vault.
     
@@ -38,21 +38,21 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
     
 - Produit des logs spécifiques (résumés des fichiers ajoutés/ignorés) via `services/actionLogger.ts`.
     
-- À migrer vers `src/actions/archives.ts` avec intégration au schéma ImportSummary pour homogénéiser les retours et journaux.
+- Diff modale (P2) → YAML maître réécrit via `buildYamlMaster` (préserve les sections).
 
-### 🕓 Flux : Journal et JournalRecalc (`src/commands/journal.ts`, `src/commands/journalRecalc.ts`)
+### 🕓 Flux : Journal et JournalRecalc (`src/actions/createJournal.ts`, `src/actions/journalRecalc.ts`)
 
 - Commandes destinées au **recalcul des journaux chronologiques**.
     
 - Utilisent `core/journalUtils.ts` pour recalculer les liens temporels, les index et les références croisées (“avant/après”).
     
-- `journal.ts` pilote la création ou mise à jour des pages de journal, tandis que `journalRecalc.ts` effectue un recalcul ciblé sur les dates ou catégories.
+- `createJournal.ts` pilote la création/mise à jour des pages de journal, tandis que `journalRecalc.ts` effectue un recalcul ciblé sur les dates ou catégories.
     
 - Logs simplifiés produits via `actionLogger.ts` (pas de `NEW/LOGS`).
     
-- À terme, ces actions devront adopter le modèle `ImportSummary` et l’écriture Markdown unifiée (même format de log détaillé).
+- YAML maître généré via `buildYamlMaster`; journaux dédiés toujours gérés via notices modales (pas de NEW/LOGS).
 
-### 🎞️ Flux : Minutes (`src/commands/minutes.ts`)
+### 🎞️ Flux : Minutes (`src/actions/createMinutes.ts`)
 
 - Commande dédiée au **projet “Minutes”**, orientée vidéo et carnet visuel.
     
@@ -60,35 +60,35 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
     
 - Les connexions entre vidéos (“ailleurs”, “avant/après”) sont calculées à partir des métadonnées.
     
-- Le flux n’utilise pas encore la couche `core/yamlMaster.ts` ni le `ImportSummary`, mais suit une logique similaire (création de notes + liens).
+- Utilise `buildYamlMaster` + `MasterFields` pour la création (YAML homogénéisé).
     
-- Migration future : harmonisation avec le modèle `actions/importWordpress.ts` pour bénéficier du logging unifié.
+- Journaux : notices succinctes (pas de journal Markdown dédié).
 
-### 📝 Flux : ModifyNote (`src/commands/modifyNote.ts`)
+### 📝 Flux : ModifyNote (`src/actions/modifyNote.ts`)
 
 - Action permettant de **modifier une note existante** après import.
     
 - Ajoute ou met à jour des métadonnées (ex. ajout de tags, mise à jour du frontmatter YAML).
     
-- Utilise directement les utilitaires `core/yamlPatch.ts` et `services/yamlBuilder.ts`.
+- Utilise directement les utilitaires `core/yamlPatch.ts`.
     
 - Génère des logs succincts via `actionLogger.ts`.
     
 - À migrer vers une action normalisée dans `src/actions/` avec support du `ImportSummary` (pour suivi complet des modifications et erreurs).
 
-### 🌌 Flux : Restes du futur (`src/commands/restes.ts`)
+### 🌌 Flux : Restes du futur (`src/actions/createRestes.ts`)
 
 - Commande propre au **projet “Restes du futur”**, destinée à créer et relier des notes thématiques.
     
-- Suit une logique proche de `minutes.ts`, mais orientée texte et exploration documentaire.
+- Suit une logique proche de `createMinutes.ts`, mais orientée texte et exploration documentaire.
     
 - Produit des notes interconnectées avec des champs `lien_projet` et `wp_categories`.
     
-- Utilise ponctuellement `core/yamlMaster.ts` pour sérialiser les métadonnées.
+- YAML maître construit via `buildYamlMaster` (P1/P2).
     
-- Ne génère pas encore de journal Markdown complet : les logs passent par `actionLogger.ts`.
+- Pas de journal Markdown ; feedback via notices/diff modale.
     
-- À migrer vers `src/actions/restes.ts` pour uniformiser le flux (YAML, log, gestion des erreurs).
+- Flux harmonisé : même logique que Archives (diff modale P2, YAML maître).
 
 ### 🧾 Flux : Logging global (autres modules)
 
@@ -112,9 +112,4 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
 - `previewModal.ts` (dry-run et choix de dossier).
     
 - Modales complémentaires (tags, archives, journal).
-    
 
-### 🧰 Utilitaires communs
-
-- `fileUtils.ts`, `dateUtils.ts`, `titleUtils.ts`, `validationUtils.ts`, `imageUtils.ts`, `journalUtils.ts`.
-    
