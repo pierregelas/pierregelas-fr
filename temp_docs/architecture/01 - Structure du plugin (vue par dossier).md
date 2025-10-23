@@ -87,10 +87,3 @@ Modales thématiques (archives, tags, journal).
     
 - `styles.css` : styles UI.
     
-
-### 🧰 Utilitaires communs
-
-- `fileUtils.ts`, `dateUtils.ts`, `titleUtils.ts`, `validationUtils.ts`, `imageUtils.ts`, `journalUtils.ts`.
-    
-
----
