@@ -20,9 +20,9 @@ Racine du code. Les sous-dossiers correspondent aux couches : **UI / Actions / C
 
 Actions “orchestratrices” déclenchées par l’utilisateur.
 
-| Fichier              | Rôle                                                                                                                                                                                                                       |
-| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `importWordpress.ts` | Boucle d’import CSV WordPress : lecture ligne à ligne, création/MAJ des notes, collecte **en mémoire** de `error_records` (sans relire les fichiers `ERROR_*`), renvoi d’un `ImportSummary` (compteurs, chemins, détails). |
+| Fichier              | Rôle                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `importWordpress.ts` | Boucle d’import CSV WordPress : lecture ligne à ligne, création/MAJ des notes, collecte **en mémoire** de `error_records` (sans relire les fichiers `ERROR_*`), renvoi d’un `ImportSummary` (compteurs, chemins, détails). Le champ `img_legende` est désormais sérialisé via `services/yamlBuilder.ts` avec un bloc YAML littéral (`\|`), assurant la compatibilité des légendes multiligne issues du CSV. |
 
 **Responsabilités clés :**
 

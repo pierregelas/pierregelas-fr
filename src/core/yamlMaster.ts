@@ -1,6 +1,6 @@
 // src/core/yamlMaster.ts
 import type { MasterFields } from "./types";
-
+import { pushYamlBlock } from "../services/yamlBuilder";
 export const YAML_SECTION_LINES = {
   IMAGES: "IMAGES: ______________________________________________________________________",
   LIEN:   "LIEN: ______________________________________________________________________",
@@ -52,7 +52,13 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   out.push(...emitList("img_descr", master.img_descr));
   out.push(...emitList("img_filename", master.img_filename));
   out.push(...emitList("img_id", master.img_id, quoteIds)); // ⚠️ quoted
-  out.push(...emitList("img_legende", master.img_legende));
+	{
+	  const imgLegendeValues = Array.isArray(master.img_legende) ? master.img_legende : [];
+	  const imgLegendeBlock = imgLegendeValues.length === 0
+		? ""
+		: imgLegendeValues.map(v => v ?? "").join("\n\n");
+	  pushYamlBlock(out, "img_legende", imgLegendeBlock);
+	}
   out.push(...emitList("img_titre", master.img_titre));
   out.push(...emitList("img_url", master.img_url));
 

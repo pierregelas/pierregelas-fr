@@ -7,6 +7,7 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
 - Séparation des journaux: Import CSV WP → `NEW/LOGS/`; services (ex. Tags) → `wp_tags/logs_tests/`.
 - Conventions CSV: `wp_tags` séparés par `,`; `wp_categories` hiérarchisés avec `>`; images multiples via `||`.
 - YAML frontmatter: généré via core (`yamlMaster.ts`), patchs via services (`yamlPatch.ts`); ne pas contourner ces couches depuis l’UI.
+- Les champs multiligne comme `img_legende` sont sérialisés en YAML via des blocs littéraux (`|`) avec indentation standard, assurant leur validité dans le frontmatter Obsidian.
 
 ## Feuille de route de migration (commands → actions)
 - Étape 1 — Minutes: déplacer `src/commands/minutes.ts` vers `src/actions/minutes.ts`, adopter `ImportSummary` et écrire un journal homogène (structure identique à l’import WP).

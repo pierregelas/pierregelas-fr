@@ -2,42 +2,28 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
 ### 🔄 Flux : Importation CSV WordPress (du clic au journal)
 
 1. **UI** `ui/commands.ts`
-    
 
 - Commande palette “Importer un CSV WordPress”
-    
 - Pick du `.csv` → **dry-run** (prévisualisation), choix du dossier (par défaut `NEW/`).
-    
 
 2. **Action** `actions/importWordpress.ts`
-    
 
 - Lecture CSV → mapping → YAML → upsert notes.
-    
 - Création des `ERROR_*` si échec d’une ligne.
-    
 - **Remplit `summary.error_records` en mémoire** (source unique pour le log détaillé).
-    
+- Le champ `img_legende` (issu de `wp_img_caption`) est généré en bloc YAML littéral (`|`) via `yamlBuilder`, ce qui permet de conserver les retours à la ligne dans les légendes sans casser le frontmatter YAML.
 
 3. **Journal d’import (Markdown)** `ui/commands.ts`
-    
 
 - Écrit **`NEW/LOGS/import-YYYYMMDD-HHMMSS.md`**.
-    
 - Sections : Résumé / Créés / Modifiées (champs modifiés) / Identiques / **Erreurs détaillées**.
-    
 - **`## Erreurs`** : pour chaque erreur, affiche le wikilink `[[ERROR_*]]` + sous-lignes :
     
     - `wp_error:`
-        
     - `post-id:`
-        
     - `wp_row_index:`
-        
     - `wp_id_raw:`
-        
     - `wp_titre_raw:`
-        
     - `error_type:`  
         _(Sans ligne vide entre items.)_
         
