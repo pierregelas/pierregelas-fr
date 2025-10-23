@@ -1,5 +1,5 @@
 # Points d’attention et spécificités techniques
-_Last updated: 2025-10-22 — Plugin v0.1.0_
+_Last updated: 2025-10-23 — Plugin v0.1.0_
 
 ## Invariants techniques (à ne pas casser)
 - Source unique des erreurs: le journal d’import lit uniquement `summary.error_records` (collecté en mémoire dans `actions/importWordpress.ts`) et n’effectue jamais de parsing des fichiers `ERROR_*`.
@@ -7,6 +7,7 @@ _Last updated: 2025-10-22 — Plugin v0.1.0_
 - Séparation des journaux: Import CSV WP → `NEW/LOGS/`; services (ex. Tags) → `wp_tags/logs_tests/`.
 - Conventions CSV: `wp_tags` séparés par `,`; `wp_categories` hiérarchisés avec `>`; images multiples via `||`.
 - YAML frontmatter: généré via core (`yamlMaster.ts`), patchs via services (`yamlPatch.ts`); ne pas contourner ces couches depuis l’UI.
+- Listes wikilink (`lien_projet`, `post_cat` dérivés WP) sérialisées via `pushYamlList` → items forcés en `'[[...]]'` (apostrophes internes doublées) pour éviter le rendu `[[["..."]]]` d’Obsidian.
 - Les champs multiligne comme `img_legende` sont sérialisés en YAML via des blocs littéraux (`|`) avec indentation standard, assurant leur validité dans le frontmatter Obsidian.
 
 ## Feuille de route de migration (commands → actions)

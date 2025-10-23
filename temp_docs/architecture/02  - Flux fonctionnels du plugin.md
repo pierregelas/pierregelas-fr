@@ -1,4 +1,4 @@
-_Last updated: 2025-10-22 — Plugin v0.1.0_
+_Last updated: 2025-10-23 — Plugin v0.1.0_
 ### 🔄 Flux : Importation CSV WordPress (du clic au journal)
 
 1. **UI** `ui/commands.ts`

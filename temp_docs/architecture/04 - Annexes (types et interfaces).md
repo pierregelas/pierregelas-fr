@@ -1,5 +1,5 @@
 # Annexes — Types et interfaces
-_Last updated: 2025-10-22 — Plugin v0.1.0_
+_Last updated: 2025-10-23 — Plugin v0.1.0_
 
 ## Interfaces principales
 
