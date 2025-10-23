@@ -45,12 +45,10 @@ export const WP_IMPORT_RULES: { [K in YamlKey]: MappingRule<K> } = {
   lien_archives: { derive: () => null, updatePolicy: "overwrite" },
   lien_journal:  { derive: () => null, updatePolicy: "overwrite" },
   lien_projet: {
-	derive: (row) => {
-	  const names = splitHierarchy(row.wp_categories);
-	  return names.map(n => `"[[${
-		n
-	  }]]"`);
-	},
+	  derive: (row) => {
+				const names = splitHierarchy(row.wp_categories);
+				return names.map((n) => `[[${n}]]`);
+			  },
 	updatePolicy: "overwrite",
   },
   lien_restes: { derive: () => null, updatePolicy: "overwrite" },

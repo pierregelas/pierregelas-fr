@@ -20,9 +20,24 @@ export interface EmitOptions {
 /** Convertit une liste en lignes YAML `- item`; `quoted` force les guillemets. */
 export function toYamlList(items: string[], quoted: boolean = false): string[] {
   return items.map(v => {
-	const s = v ?? "";
-	return quoted ? `- "${s.replace(/"/g, '\\"')}"` : `- ${s}`;
+	  const s = v ?? "";
+	  return quoted ? `- "${s.replace(/"/g, '\\"')}"` : `- ${s}`;
   });
+}
+
+/**
+ * Format a YAML list safely for Obsidian to avoid [[["..."]] rendering bug.
+ * Forces single-quoted strings for each item, e.g. '[[Link]]'.
+ */
+function pushYamlList(lines: string[], key: string, values: string[]): void {
+  lines.push(`${key}:`);
+  if (!values || values.length === 0) {
+	lines.push("  []");
+	return;
+  }
+  for (const v of values) {
+	lines.push(`  - '${v}'`);
+  }
 }
 
 function emitList(key: string, arr: string[], quoted = false): string[] {
@@ -161,7 +176,7 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   out.push(YAML_SECTION_LINES.LIEN);
   out.push(emitScalar("lien_archives", master.lien_archives));
   out.push(emitScalar("lien_journal", master.lien_journal));
-  out.push(...emitList("lien_projet", master.lien_projet)); // wikilinks "[[Name]]"
+	pushYamlList(out, "lien_projet", master.lien_projet); // wikilinks "[[Name]]"
   out.push(emitScalar("lien_restes", master.lien_restes));
 
   // ———————— MAJ
@@ -170,7 +185,7 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
 
   // ———————— POST
   out.push(YAML_SECTION_LINES.POST);
-  out.push(...emitList("post_cat", master.post_cat));
+	pushYamlList(out, "post_cat", master.post_cat);
   out.push(emitScalar("post_date", master.post_date));
   out.push(emitScalar("post_descr", master.post_descr));
   out.push(emitScalar("post_extrait", master.post_extrait));
