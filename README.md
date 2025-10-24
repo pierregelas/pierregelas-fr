@@ -26,6 +26,8 @@ Outils d’édition et d’import pour un vault Obsidian (contenus WordPress, no
 
 - [Documentation interne](#documentation-interne)
 
+- [Historique des versions](#historique-des-versions)
+
 - [Contribuer & Dev](#contribuer--dev)
     
 - [Licence](#licence)
@@ -80,6 +82,14 @@ Outils d’édition et d’import pour un vault Obsidian (contenus WordPress, no
 ## Documentation interne
 
 Retrouve l’architecture complète du plugin, la description des flux fonctionnels, les points d’attention techniques et la feuille de route dans [`temp_docs/architecture/`](temp_docs/architecture/). Commence par **05 - Documentation interne — Structure et liens.md**, qui agit comme hub vers les autres documents.
+
+Pour les modales utilisateurs, un guide spécifique est disponible dans [`temp_docs/modals-README.md`](temp_docs/modals-README.md).
+
+Les helpers de bas niveau et leurs points de vigilance sont décrits dans [`temp_docs/services-README.md`](temp_docs/services-README.md), tandis que les scénarios complets (import WordPress, Archives, Minutes, Journal, Tags, etc.) sont détaillés dossier par dossier dans [`temp_docs/workflows/`](temp_docs/workflows/).
+
+## Historique des versions
+
+Les nouveautés par version sont centralisées dans [`CHANGELOG.md`](CHANGELOG.md), structuré selon la convention **Keep a Changelog**. Chaque nouvelle release doit y être documentée avant publication.
 
 ## Contribuer & Dev
 
