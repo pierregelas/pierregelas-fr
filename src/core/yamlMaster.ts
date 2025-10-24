@@ -149,6 +149,8 @@ export function buildYamlMaster(
 
 export type RestesYamlInput = Partial<MasterFields>;
 export type ArchivesYamlInput = Partial<MasterFields>;
+export type JournalYamlInput = Partial<MasterFields>;
+export type MinutesYamlInput = Partial<MasterFields>;
 
 export function buildRestesYaml(input: RestesYamlInput, opts: EmitOptions = {}): string {
   const combined: Partial<MasterFields> = { ...input };
@@ -200,6 +202,60 @@ export function buildArchivesYaml(input: ArchivesYamlInput, opts: EmitOptions = 
   return emitYaml(normalized, opts);
 }
 
+export function buildJournalYaml(input: JournalYamlInput, opts: EmitOptions = {}): string {
+  const combined: Partial<MasterFields> = { ...input };
+
+  if (combined.maj_wp == null) combined.maj_wp = true;
+  if (!combined.lien_projet || combined.lien_projet.length === 0) {
+		combined.lien_projet = ["[[Photo]]", "[[Journal Photo]]"];
+  }
+  if (!combined.post_cat || combined.post_cat.length === 0) {
+		combined.post_cat = ["photo", "journal-photo"];
+  }
+  if (combined.post_vid_url === undefined) combined.post_vid_url = null;
+  if (combined.post_descr === undefined) combined.post_descr = null;
+  if (combined.post_extrait === undefined) combined.post_extrait = null;
+  if (combined.post_id == null) combined.post_id = "";
+  if (combined.post_perma === undefined) combined.post_perma = null;
+  if (combined.wp_carnet_link === undefined) combined.wp_carnet_link = null;
+  if (combined.wp_carnet_on === undefined) combined.wp_carnet_on = false;
+  if (combined.wp_status === undefined) combined.wp_status = null;
+  if (combined.wp_import_dataset_key === undefined) combined.wp_import_dataset_key = null;
+  if (combined.wp_import_dataset_id === undefined) combined.wp_import_dataset_id = null;
+  if (!combined.tags) combined.tags = [];
+  if (!combined.post_mod && combined.post_date) combined.post_mod = combined.post_date;
+
+  const normalized = normalizeMasterFields(combined);
+  return emitYaml(normalized, opts);
+}
+
+export function buildMinutesYaml(input: MinutesYamlInput, opts: EmitOptions = {}): string {
+  const combined: Partial<MasterFields> = { ...input };
+
+  if (combined.maj_wp == null) combined.maj_wp = true;
+  if (!combined.lien_projet || combined.lien_projet.length === 0) {
+		combined.lien_projet = ["[[Vidéo]]", "[[Minutes]]"];
+  }
+  if (!combined.post_cat || combined.post_cat.length === 0) {
+		combined.post_cat = ["video", "minutes"];
+  }
+  if (combined.post_vid_url == null) combined.post_vid_url = "";
+  if (combined.post_descr === undefined) combined.post_descr = null;
+  if (combined.post_extrait === undefined) combined.post_extrait = null;
+  if (combined.post_id == null) combined.post_id = "";
+  if (combined.post_perma === undefined) combined.post_perma = null;
+  if (combined.wp_carnet_link === undefined) combined.wp_carnet_link = null;
+  if (combined.wp_carnet_on === undefined) combined.wp_carnet_on = false;
+  if (combined.wp_status === undefined) combined.wp_status = null;
+  if (combined.wp_import_dataset_key === undefined) combined.wp_import_dataset_key = null;
+  if (combined.wp_import_dataset_id === undefined) combined.wp_import_dataset_id = null;
+  if (!combined.tags) combined.tags = [];
+  if (!combined.post_mod && combined.post_date) combined.post_mod = combined.post_date;
+
+  const normalized = normalizeMasterFields(combined);
+  return emitYaml(normalized, opts);
+}
+
 export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   const quoteIds = opts.quoteNumericIdsInImages ?? true;
   const out: string[] = [];
@@ -224,7 +280,6 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
 	}
   out.push(...emitList("img_titre", master.img_titre));
   out.push(...emitList("img_url", master.img_url));
-
   // ———————— LIEN
   out.push(YAML_SECTION_LINES.LIEN);
   out.push(emitScalar("lien_archives", master.lien_archives));

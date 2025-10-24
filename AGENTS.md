@@ -249,3 +249,35 @@ this.registerInterval(window.setInterval(() => { /* ... */ }, 1000));
 - Developer policies: https://docs.obsidian.md/Developer+policies
 - Plugin guidelines: https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
 - Style guide: https://help.obsidian.md/style-guide
+
+## 📦 Conventions internes du plugin
+
+### 🧭 Pipeline logique
+
+UI → Action → Core → Services
+
+- L’UI appelle une action dans `src/actions/`
+- L’action prépare un input via `prepareXxxInput()`
+- Le YAML est généré via `buildXxxYaml()` dans `yamlMaster.ts`
+- Le Markdown final est écrit via les helpers de `src/services/`
+
+### 📁 Rôle des dossiers
+
+- `actions/` : logique principale déclenchée par l’UI
+- `core/` : fonctions pures, typage, transformation
+- `services/` : interactions avec Obsidian (read/write)
+- `commands/` : anciennes commandes, à migrer vers `actions/`
+
+### 🧩 Builders YAML
+
+Tous les YAML sont construits par :
+- `buildRestesYaml()`
+- `buildArchivesYaml()`
+- `buildJournalYaml()`
+- `buildMinutesYaml()`
+
+Ils garantissent la structure complète et homogène attendue dans les notes.
+
+### 🛠️ Helpers de transformation
+
+Chaque action dispose d’un `prepareXxxInput()` pour valider et transformer les champs en entrée avant la génération du YAML.
