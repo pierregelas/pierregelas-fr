@@ -9,10 +9,10 @@ export function splitMulti(input?: string, sep: "||" = "||"): string[] {
 	.filter(s => s.length > 0);
 }
 
-/** "A>B>C" -> ["A","B","C"] (trim + dédup en conservant l'ordre). */
+/** "A>B,C" -> ["A","B","C"] (trim + dédup en conservant l'ordre). */
 export function splitHierarchy(input?: string): string[] {
   if (!input) return [];
-  const parts = input.split(">").map(s => s.trim()).filter(Boolean);
+	const parts = input.split(/[>,]/).map(s => s.trim()).filter(Boolean);
   return dedupeKeepOrder(parts);
 }
 
