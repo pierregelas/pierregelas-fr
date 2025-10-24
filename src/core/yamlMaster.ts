@@ -25,25 +25,32 @@ export function toYamlList(items: string[], quoted: boolean = false): string[] {
   });
 }
 
+function escapeYaml(value: string): string {
+  return value
+				.replace(/\\/g, "\\\\")
+				.replace(/"/g, '\\"')
+				.replace(/\n/g, "\\n");
+}
+
 /**
  * Format a YAML list safely for Obsidian to avoid [[[\"...\"]] rendering bug.
- * Forces single-quoted scalars except for wikilinks (`[[Link]]`) that must stay unquoted.
+ * Leaves wikilinks (`[[Link]]`) untouched and quotes other values properly.
  */
 function pushYamlList(lines: string[], key: string, values: string[]): void {
   lines.push(`${key}:`);
   if (!values || values.length === 0) {
-		lines.push("  []");
-		return;
+	  lines.push("  []");
+	  return;
   }
   for (const raw of values) {
-		const value = (raw ?? "").toString();
-		const trimmed = value.trim();
-		if (trimmed.startsWith("[[") && trimmed.endsWith("]]")) {
-				  lines.push(`  - ${trimmed}`);
-				  continue;
-		}
-		const escaped = trimmed.replace(/'/g, "''");
-		lines.push(`  - '${escaped}'`);
+	  const value = (raw ?? "").toString();
+	  const trimmed = value.trim();
+	  if (/^\[\[.*\]\]$/.test(trimmed)) {
+						lines.push(`  - ${value}`);
+						continue;
+	  }
+	  const escaped = escapeYaml(trimmed);
+	  lines.push(`  - "${escaped}"`);
   }
 }
 
@@ -321,17 +328,14 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
 		out.push(emitScalar("wp_carnet_on", master.wp_carnet_on));
 		out.push(emitScalar("wp_status", master.wp_status));
 
-		  if (
-						master.wp_import_dataset_key != null &&
-						String(master.wp_import_dataset_key).length > 0 &&
-						master.wp_import_dataset_id != null &&
-						Number.isFinite(master.wp_import_dataset_id)
-		  ) {
-						out.push(YAML_SECTION_LINES.WP_IMPORT);
-						out.push(`wp_import_dataset_key: ${master.wp_import_dataset_key}`);
-						out.push(`wp_import_dataset_id: ${Number(master.wp_import_dataset_id)}`);
-		  }
-
+	out.push(YAML_SECTION_LINES.WP_IMPORT);
+	const wpImportId =
+					master.wp_import_dataset_id != null && Number.isFinite(master.wp_import_dataset_id)
+									? String(master.wp_import_dataset_id)
+									: "";
+	const wpImportKey = master.wp_import_dataset_key ?? "";
+	out.push(`wp_import_dataset_id: "${escapeYaml(wpImportId)}"`);
+	out.push(`wp_import_dataset_key: "${escapeYaml(wpImportKey)}"`);
 		out.push("---");
 		return out.join("\n");
   }
