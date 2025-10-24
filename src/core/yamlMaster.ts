@@ -65,10 +65,11 @@ function emitScalar(key: string, value: string | number | null | boolean): strin
   // null ou chaîne vide ⇒ clé présente mais vide
   if (value == null || String(value).length === 0) return `${key}:`;
 	if (typeof value === "string") {
-			const trimmed = value.trim();
-			if (/^\[\[.*\]\]$/.test(trimmed)) {
-								  return `${key}: '${value}'`;
-			}
+	  const trimmed = value.trim();
+	  if (/^\[\[.*\]\]$/.test(trimmed)) {
+		const escaped = value.replace(/'/g, "''");
+		return `${key}: '${escaped}'`;
+	  }
 	}
   return `${key}: ${value}`;
 }

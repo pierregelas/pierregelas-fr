@@ -39,6 +39,7 @@ Documenter les actions `createArchivesFromJournal()` et `updateArchivesFromJourn
    - Dériver titres (`post_titre_1`, `post_titre_2`, `post_titre_full`).
    - Convertir l'image WP (`toBfImageNameFromWp`).
    - Générer `lien_journal = [[post_titre_full_journal]]` et reprendre `lien_restes` (si présent).
+   - Les wikilinks scalaires (`lien_journal`, `lien_archives`, `lien_restes`) sont protégés par `emitScalar`, qui les quote automatiquement pour éviter les séquences YAML imbriquées dans Obsidian.
 5. **YAML & corps** : `createEmptyMasterFields()` → remplissage des champs Archives (catégories `photo`, `archives-du-futur`, liens projet, etc.) → `buildYamlMaster(master, "archives")`.
 6. **Contenu Markdown** : template commun (section Photo + Notes).
 7. **Écriture** : `createNoteFile()` crée la note et affiche `Notice` de succès ; erreurs loguées + `Notice` d'échec.

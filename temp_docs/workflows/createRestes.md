@@ -40,6 +40,7 @@ Présenter les actions `createRestesFromJournal()` et `updateRestesFromJournal()
    - `toReiImageNameFromWp(imgFilenameWP)` → cover + `img_filename`.
    - `wrapWiki(postTitreFullJournal)` → `lien_journal`.
    - `lien_archives` repris tel quel (peut être null).
+   - Les wikilinks scalaires (`lien_journal`, `lien_archives`, `lien_restes`) sont sérialisés via `emitScalar`, qui les entoure automatiquement de quotes simples pour éviter qu'Obsidian n'interprète le YAML comme des séquences imbriquées.
 5. **Construction du master** : base `createEmptyMasterFields()`, catégories `photo` + `restes-du-futur`, liens projet `[[Photo]]`, `[[Restes du futur]]`, `maj_wp = true`, etc.
 6. **Génération du corps** : template Markdown identique à Archives (Photo + Notes).
 7. **Écriture** : `createNoteFile()` crée la note ; `Notice` succès ou erreur.
