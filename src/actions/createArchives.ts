@@ -7,10 +7,11 @@ import { load as yamlLoad } from "js-yaml";
 
 import type { MasterFields } from "@core/types";
 import {
+  buildArchivesYaml,
   buildYamlMaster,
-  createEmptyMasterFields,
   normalizeMasterFields,
 } from "@core/yamlMaster";
+import { prepareArchivesInput } from "@core/yamlHelpers";
 import {
   isJournalPhotoCategory,
   deriveArchivesTitlesFromLinkText,
@@ -39,79 +40,60 @@ export async function createArchivesFromJournal(app: App): Promise<void> {
   }
 
   const postTitreFullJournal = str(fm.post_titre_full);
-  const postDateIso = str(fm.post_date);
-  const lienArchivesRaw = str(fm.lien_archives);
-  const lienRestes = str(fm.lien_restes);
-  const imgFilenameWP = str(fm.img_filename);
+	const postDateIso = str(fm.post_date);
+	const lienArchivesRaw = str(fm.lien_archives);
+	const lienRestes = str(fm.lien_restes);
+	const imgFilenameWP = str(fm.img_filename);
 
-  if (!postTitreFullJournal || !postDateIso || !lienArchivesRaw) {
-		new Notice(
-		  "Frontmatter incomplet (post_titre_full, post_date, lien_archives nécessaires).",
-		  6000
-		);
-		return;
-  }
+	if (!postTitreFullJournal || !postDateIso || !lienArchivesRaw) {
+		  new Notice(
+			"Frontmatter incomplet (post_titre_full, post_date, lien_archives nécessaires).",
+			6000
+		  );
+		  return;
+	}
 
-  const archivesTitle = unwrapWiki(lienArchivesRaw);
-  if (!archivesTitle) {
-		new Notice("Le champ 'lien_archives' est vide ou mal formé.", 6000);
-		return;
-  }
+	const archivesTitle = unwrapWiki(lienArchivesRaw);
+	if (!archivesTitle) {
+		  new Notice("Le champ 'lien_archives' est vide ou mal formé.", 6000);
+		  return;
+	}
 
-  const targetPath = `${archivesTitle}.md`;
-  if (app.vault.getAbstractFileByPath(targetPath)) {
-		new Notice("La note « Archives du futur » est déjà créée !", 6000);
-		return;
-  }
+	const targetPath = `${archivesTitle}.md`;
+	if (app.vault.getAbstractFileByPath(targetPath)) {
+		  new Notice("La note « Archives du futur » est déjà créée !", 6000);
+		  return;
+	}
 
-  const { postTitre1, postTitre2, postTitreFull } = deriveArchivesTitlesFromLinkText(archivesTitle);
-  if (!postTitreFull || !postTitre1) {
-		new Notice(
-		  "Impossible de dériver les titres Archives depuis 'lien_archives'.",
-		  6000
-		);
-		return;
-  }
+	const { postTitre1 } = deriveArchivesTitlesFromLinkText(archivesTitle);
+	if (!postTitre1) {
+				  new Notice(
+					"Impossible de dériver le titre Archives depuis 'lien_archives'.",
+					6000
+				  );
+				  return;
+	}
 
-  const imgFilenameBF = toBfImageNameFromWp(imgFilenameWP);
-  const lienJournal = wrapWiki(postTitreFullJournal);
+	const postDate = new Date(postDateIso);
+	if (Number.isNaN(postDate.getTime())) {
+				  new Notice("La date du journal est invalide.", 6000);
+				  return;
+	}
 
-  const master = createEmptyMasterFields();
-  master.cover = imgFilenameBF;
-  master.img_alt = [postTitre1];
-  master.img_filename = [imgFilenameBF];
-  master.img_legende = [postTitreFull];
-  master.lien_archives = null;
-  master.lien_journal = lienJournal;
-  master.lien_projet = ["[[Photo]]", "[[Archives du futur]]"];
-  master.lien_restes = lienRestes || null;
-  master.maj_wp = true;
-  master.post_cat = ["photo", "archives-du-futur"];
-  master.post_date = postDateIso;
-  master.post_descr = null;
-  master.post_extrait = null;
-  master.post_id = "";
-  master.post_mod = postDateIso;
-  master.post_perma = null;
-  master.post_titre_1 = postTitre1;
-  master.post_titre_2 = postTitre2;
-  master.post_titre_full = postTitreFull;
-  master.post_vid_url = null;
-  master.tags = [];
-  master.wp_carnet_link = null;
-  master.wp_carnet_on = false;
-  master.wp_status = null;
-  master.wp_import_dataset_key = null;
-  master.wp_import_dataset_id = null;
+	const lienJournal = wrapWiki(postTitreFullJournal);
 
-  const yaml = buildYamlMaster(master, "archives");
-  const body = [
-		"## Photo",
-		`![[${imgFilenameBF}]]`,
-		"",
-		"## Notes",
-		`![[${postTitreFull}_notes]]`,
-  ].join("\n");
+	const archivesInput = prepareArchivesInput(imgFilenameWP, postTitre1, postDate);
+	archivesInput.lien_archives = null;
+	archivesInput.lien_journal = lienJournal;
+	archivesInput.lien_restes = lienRestes || null;
+
+	const yaml = buildArchivesYaml(archivesInput);
+	const imageName =
+				  archivesInput.img_filename && archivesInput.img_filename.length > 0
+					? archivesInput.img_filename[0]
+					: "";
+	const body = ["## Photo", `![[${imageName}]]`].join("\n");
+
 
   try {
 		const created = await createNoteFile(app.vault, archivesTitle, yaml, body);

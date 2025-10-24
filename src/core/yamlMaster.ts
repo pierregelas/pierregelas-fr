@@ -147,6 +147,59 @@ export function buildYamlMaster(
   return emitYaml(normalized, opts);
 }
 
+export type RestesYamlInput = Partial<MasterFields>;
+export type ArchivesYamlInput = Partial<MasterFields>;
+
+export function buildRestesYaml(input: RestesYamlInput, opts: EmitOptions = {}): string {
+  const combined: Partial<MasterFields> = { ...input };
+
+  if (combined.maj_wp == null) combined.maj_wp = true;
+  if (!combined.lien_projet || combined.lien_projet.length === 0) {
+		combined.lien_projet = ["[[Photo]]", "[[Restes du futur]]"];
+  }
+  if (!combined.post_cat || combined.post_cat.length === 0) {
+		combined.post_cat = ["photo", "restes-du-futur"];
+  }
+  if (combined.post_vid_url == null) combined.post_vid_url = "";
+  if (combined.post_descr === undefined) combined.post_descr = null;
+  if (combined.post_extrait === undefined) combined.post_extrait = null;
+  if (combined.post_id == null) combined.post_id = "";
+  if (combined.post_perma === undefined) combined.post_perma = null;
+  if (combined.wp_carnet_link === undefined) combined.wp_carnet_link = null;
+  if (combined.wp_carnet_on === undefined) combined.wp_carnet_on = false;
+  if (combined.wp_status === undefined) combined.wp_status = null;
+  if (!combined.tags) combined.tags = [];
+  if (!combined.post_mod && combined.post_date) combined.post_mod = combined.post_date;
+
+  const normalized = normalizeMasterFields(combined);
+  return emitYaml(normalized, opts);
+}
+
+export function buildArchivesYaml(input: ArchivesYamlInput, opts: EmitOptions = {}): string {
+  const combined: Partial<MasterFields> = { ...input };
+
+  if (combined.maj_wp == null) combined.maj_wp = true;
+  if (!combined.lien_projet || combined.lien_projet.length === 0) {
+		combined.lien_projet = ["[[Photo]]", "[[Archives du futur]]"];
+  }
+  if (!combined.post_cat || combined.post_cat.length === 0) {
+		combined.post_cat = ["photo", "archives-du-futur"];
+  }
+  if (combined.post_vid_url == null) combined.post_vid_url = "";
+  if (combined.post_descr === undefined) combined.post_descr = null;
+  if (combined.post_extrait === undefined) combined.post_extrait = null;
+  if (combined.post_id == null) combined.post_id = "";
+  if (combined.post_perma === undefined) combined.post_perma = null;
+  if (combined.wp_carnet_link === undefined) combined.wp_carnet_link = null;
+  if (combined.wp_carnet_on === undefined) combined.wp_carnet_on = false;
+  if (combined.wp_status === undefined) combined.wp_status = null;
+  if (!combined.tags) combined.tags = [];
+  if (!combined.post_mod && combined.post_date) combined.post_mod = combined.post_date;
+
+  const normalized = normalizeMasterFields(combined);
+  return emitYaml(normalized, opts);
+}
+
 export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   const quoteIds = opts.quoteNumericIdsInImages ?? true;
   const out: string[] = [];

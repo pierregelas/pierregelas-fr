@@ -7,10 +7,11 @@ import { load as yamlLoad } from "js-yaml";
 
 import type { MasterFields } from "@core/types";
 import {
+  buildRestesYaml,
   buildYamlMaster,
-  createEmptyMasterFields,
   normalizeMasterFields,
 } from "@core/yamlMaster";
+import { prepareRestesInput } from "@core/yamlHelpers";
 import {
   isJournalPhotoCategory,
   deriveRestesTitlesFromLinkText,
@@ -39,79 +40,58 @@ export async function createRestesFromJournal(app: App): Promise<void> {
   }
 
   const postTitreFullJournal = str(fm.post_titre_full);
-  const postDateIso = str(fm.post_date);
-  const lienRestesRaw = str(fm.lien_restes);
-  const lienArchivesRaw = str(fm.lien_archives);
-  const imgFilenameWP = str(fm.img_filename);
+	const postDateIso = str(fm.post_date);
+	const lienRestesRaw = str(fm.lien_restes);
+	const lienArchivesRaw = str(fm.lien_archives);
+	const imgFilenameWP = str(fm.img_filename);
 
-  if (!postTitreFullJournal || !postDateIso || !lienRestesRaw) {
-		new Notice(
-		  "Frontmatter incomplet (post_titre_full, post_date, lien_restes nécessaires).",
-		  6000
-		);
-		return;
-  }
+	if (!postTitreFullJournal || !postDateIso || !lienRestesRaw) {
+		  new Notice(
+			"Frontmatter incomplet (post_titre_full, post_date, lien_restes nécessaires).",
+			6000
+		  );
+		  return;
+	}
 
-  const restesTitle = unwrapWiki(lienRestesRaw);
-  if (!restesTitle) {
-		new Notice("Le champ 'lien_restes' est vide ou mal formé.", 6000);
-		return;
-  }
+	const restesTitle = unwrapWiki(lienRestesRaw);
+	if (!restesTitle) {
+		  new Notice("Le champ 'lien_restes' est vide ou mal formé.", 6000);
+		  return;
+	}
 
-  const targetPath = `${restesTitle}.md`;
-  if (app.vault.getAbstractFileByPath(targetPath)) {
-		new Notice("La note « Restes du futur » est déjà créée !", 6000);
-		return;
-  }
+	const targetPath = `${restesTitle}.md`;
+	if (app.vault.getAbstractFileByPath(targetPath)) {
+		  new Notice("La note « Restes du futur » est déjà créée !", 6000);
+		  return;
+	}
 
-  const { postTitre1, postTitre2, postTitreFull } = deriveRestesTitlesFromLinkText(restesTitle);
-  if (!postTitreFull || !postTitre1) {
-		new Notice(
-		  "Impossible de dériver les titres Restes depuis 'lien_restes'.",
-		  6000
-		);
-		return;
-  }
+	const { postTitre1 } = deriveRestesTitlesFromLinkText(restesTitle);
+	if (!postTitre1) {
+				  new Notice(
+					"Impossible de dériver le titre Restes depuis 'lien_restes'.",
+					6000
+				  );
+				  return;
+	}
 
-  const imgFilenameREI = toReiImageNameFromWp(imgFilenameWP);
-  const lienJournal = wrapWiki(postTitreFullJournal);
+	const postDate = new Date(postDateIso);
+	if (Number.isNaN(postDate.getTime())) {
+				  new Notice("La date du journal est invalide.", 6000);
+				  return;
+	}
 
-  const master = createEmptyMasterFields();
-  master.cover = imgFilenameREI;
-  master.img_alt = [postTitre1];
-  master.img_filename = [imgFilenameREI];
-  master.img_legende = [postTitreFull];
-  master.lien_archives = lienArchivesRaw || null;
-  master.lien_journal = lienJournal;
-  master.lien_projet = ["[[Photo]]", "[[Restes du futur]]"];
-  master.lien_restes = null;
-  master.maj_wp = true;
-  master.post_cat = ["photo", "restes-du-futur"];
-  master.post_date = postDateIso;
-  master.post_descr = null;
-  master.post_extrait = null;
-  master.post_id = "";
-  master.post_mod = postDateIso;
-  master.post_perma = null;
-  master.post_titre_1 = postTitre1;
-  master.post_titre_2 = postTitre2;
-  master.post_titre_full = postTitreFull;
-  master.post_vid_url = null;
-  master.tags = [];
-  master.wp_carnet_link = null;
-  master.wp_carnet_on = false;
-  master.wp_status = null;
-  master.wp_import_dataset_key = null;
-  master.wp_import_dataset_id = null;
+	const lienJournal = wrapWiki(postTitreFullJournal);
 
-  const yaml = buildYamlMaster(master, "restes");
-  const body = [
-		"## Photo",
-		`![[${imgFilenameREI}]]`,
-		"",
-		"## Notes",
-		`![[${postTitreFull}_notes]]`,
-  ].join("\n");
+	const restesInput = prepareRestesInput(imgFilenameWP, postTitre1, postDate);
+	restesInput.lien_archives = lienArchivesRaw || null;
+	restesInput.lien_journal = lienJournal;
+	restesInput.lien_restes = null;
+
+	const yaml = buildRestesYaml(restesInput);
+	const imageName = restesInput.img_filename && restesInput.img_filename.length > 0
+				  ? restesInput.img_filename[0]
+				  : "";
+	const body = ["## Photo", `![[${imageName}]]`].join("\n");
 
   try {
 		const created = await createNoteFile(app.vault, restesTitle, yaml, body);
