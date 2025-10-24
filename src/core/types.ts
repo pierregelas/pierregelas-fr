@@ -10,7 +10,7 @@ export interface WpRow {
   wp_perma?: string;
   wp_status?: string;
   wp_tags?: string;            // séparateur: ","
-  wp_categories?: string;      // hiérarchie: "A>B>C"
+  wp_categories?: string;      // hiérarchie: "A>B>C" ou "A,B"
   wp_a_descr_gen?: string;
   wp_extrait?: string;
   wp_a_videolink_gen?: string;

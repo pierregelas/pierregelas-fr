@@ -5,7 +5,7 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
 - Source unique des erreurs: le journal d’import lit uniquement `summary.error_records` (collecté en mémoire dans `actions/importWordpress.ts`) et n’effectue jamais de parsing des fichiers `ERROR_*`.
 - Bloc `## Erreurs` du journal d’import: rendu par `ui/commands.ts`, avec sous-lignes dans l’ordre fixe `wp_error` → `post-id` → `wp_row_index` → `wp_id_raw` → `wp_titre_raw` → `error_type`, et sans ligne vide entre items.
 - Séparation des journaux: Import CSV WP → `NEW/LOGS/`; services (ex. Tags) → `wp_tags/logs_tests/`.
-- Conventions CSV: `wp_tags` séparés par `,`; `wp_categories` hiérarchisés avec `>`; images multiples via `||`.
+- Conventions CSV: `wp_tags` séparés par `,`; `wp_categories` hiérarchisés via `>` ou `,` (gérés par `splitHierarchy`); images multiples via `||`.
 - YAML frontmatter: généré via core (`yamlMaster.ts`), patchs via services (`yamlPatch.ts`); ne pas contourner ces couches depuis l’UI.
 - Listes wikilink (`lien_projet`, `post_cat` dérivés WP) sérialisées via `pushYamlList` → items forcés en `'[[...]]'` (apostrophes internes doublées) pour éviter le rendu `[[["..."]]]` d’Obsidian.
 - Les champs multiligne comme `img_legende` sont sérialisés en YAML via des blocs littéraux (`|`) avec indentation standard, assurant leur validité dans le frontmatter Obsidian.
