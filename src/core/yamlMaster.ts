@@ -36,23 +36,23 @@ function escapeYaml(value: string): string {
  * Format a YAML list safely for Obsidian to avoid [[[\"...\"]] rendering bug.
  * Leaves wikilinks (`[[Link]]`) untouched and quotes other values properly.
  */
+
 function pushYamlList(lines: string[], key: string, values: string[]): void {
   lines.push(`${key}:`);
   if (!values || values.length === 0) {
-	  lines.push("  []");
-	  return;
+	lines.push("  []");
+	return;
   }
+
   for (const raw of values) {
-	  const value = (raw ?? "").toString();
-	  const trimmed = value.trim();
-	  if (/^\[\[.*\]\]$/.test(trimmed)) {
-						lines.push(`  - ${value}`);
-						continue;
-	  }
-	  const escaped = escapeYaml(trimmed);
-	  lines.push(`  - "${escaped}"`);
+	const value = (raw ?? "").toString().trim();
+	const escaped = value.replace(/'/g, "''"); // YAML escape for single quotes
+
+	// Toujours forcer les wikilinks entre quotes simples
+	lines.push(`  - '${escaped}'`);
   }
 }
+
 
 function emitList(key: string, arr: string[], quoted = false): string[] {
   if (!arr || arr.length === 0) return [`${key}: []`];
@@ -64,6 +64,12 @@ function emitScalar(key: string, value: string | number | null | boolean): strin
   if (typeof value === "number" && Number.isFinite(value)) return `${key}: ${value}`;
   // null ou chaîne vide ⇒ clé présente mais vide
   if (value == null || String(value).length === 0) return `${key}:`;
+	if (typeof value === "string") {
+			const trimmed = value.trim();
+			if (/^\[\[.*\]\]$/.test(trimmed)) {
+								  return `${key}: '${value}'`;
+			}
+	}
   return `${key}: ${value}`;
 }
 
