@@ -6,8 +6,8 @@ Documenter les actions `createArchivesFromJournal()` et `updateArchivesFromJourn
 ## Résumé exécutif
 ### Création
 1. **Préconditions Journal** : vérifier que la note active est un Journal Photo avec les champs clés (`post_titre_full`, `post_date`, `lien_archives`).
-2. **Vérification du lien cible** : extraire le wikilink `lien_archives` → déterminer le nom de la note Archives à créer et s'assurer qu'elle n'existe pas.
-3. **Dérivation des métadonnées** : calculer les titres Archives (`deriveArchivesTitlesFromLinkText`) et convertir l'image WP en version « BF » (`toBfImageNameFromWp`).
+2. **Vérification du lien cible** : extraire le wikilink `lien_archives`, nettoyer `[[...]]` puis déterminer le nom de la note Archives à créer et s'assurer qu'elle n'existe pas.
+3. **Dérivation des métadonnées** : calculer les titres Archives (`deriveArchivesTitlesFromLinkText`) depuis le texte du lien (avec repli sur ce texte si la portion avant « Archives » est absente), convertir l'image WP en version « BF » (`toBfImageNameFromWp`) et préparer la légende d'image.
 4. **Construction YAML + corps** : initialiser le master, renseigner les champs spécifiques Archives et générer le Markdown standard.
 5. **Création de fichier** : appeler `createNoteFile()` pour écrire `Archives.md`, puis notifier l'utilisateur.
 

@@ -6,8 +6,8 @@ Présenter les actions `createRestesFromJournal()` et `updateRestesFromJournal()
 ## Résumé exécutif
 ### Création
 1. **Validation de la note source** : confirmer que le fichier actif est un Journal Photo et que les champs (`post_titre_full`, `post_date`, `lien_restes`) sont présents.
-2. **Extraction du wikilink cible** : lire `lien_restes`, en extraire le titre de note et vérifier son inexistence.
-3. **Dérivation Restes** : calculer les titres (`deriveRestesTitlesFromLinkText`) et convertir le nom d'image WP en version REI (`toReiImageNameFromWp`).
+2. **Extraction du wikilink cible** : lire `lien_restes`, retirer `[[...]]`, déterminer le titre de note et vérifier son inexistence.
+3. **Dérivation Restes** : calculer les titres (`deriveRestesTitlesFromLinkText`) à partir du texte du lien (avec repli sur ce texte quand aucun préfixe « Restes » n'est fourni), convertir le nom d'image WP en version REI (`toReiImageNameFromWp`) et préparer la légende.
 4. **Préparation du YAML** : remplir les champs spécifiques Restes (liens croisés vers Journal & Archives, catégories, cover, etc.).
 5. **Création Markdown** : générer le corps standard (photo + notes) et écrire la note via `createNoteFile()`.
 
