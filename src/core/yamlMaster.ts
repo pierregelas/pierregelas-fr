@@ -20,23 +20,30 @@ export interface EmitOptions {
 /** Convertit une liste en lignes YAML `- item`; `quoted` force les guillemets. */
 export function toYamlList(items: string[], quoted: boolean = false): string[] {
   return items.map(v => {
-	  const s = v ?? "";
-	  return quoted ? `- "${s.replace(/"/g, '\\"')}"` : `- ${s}`;
+		  const s = v ?? "";
+		  return quoted ? `- "${s.replace(/"/g, '\\"')}"` : `- ${s}`;
   });
 }
 
 /**
- * Format a YAML list safely for Obsidian to avoid [[["..."]] rendering bug.
- * Forces single-quoted strings for each item, e.g. '[[Link]]'.
+ * Format a YAML list safely for Obsidian to avoid [[[\"...\"]] rendering bug.
+ * Forces single-quoted scalars except for wikilinks (`[[Link]]`) that must stay unquoted.
  */
 function pushYamlList(lines: string[], key: string, values: string[]): void {
   lines.push(`${key}:`);
   if (!values || values.length === 0) {
-	lines.push("  []");
-	return;
+		lines.push("  []");
+		return;
   }
-  for (const v of values) {
-	lines.push(`  - '${v}'`);
+  for (const raw of values) {
+		const value = (raw ?? "").toString();
+		const trimmed = value.trim();
+		if (trimmed.startsWith("[[") && trimmed.endsWith("]]")) {
+				  lines.push(`  - ${trimmed}`);
+				  continue;
+		}
+		const escaped = trimmed.replace(/'/g, "''");
+		lines.push(`  - '${escaped}'`);
   }
 }
 
@@ -56,42 +63,42 @@ function emitScalar(key: string, value: string | number | null | boolean): strin
 /** Émet le YAML maître (ordre & sections garantis). */
 export function createEmptyMasterFields(): MasterFields {
   return {
-		cover: "",
+				cover: "",
 
-		img_alt: [],
-		img_descr: [],
-		img_filename: [],
-		img_id: [],
-		img_legende: [],
-		img_titre: [],
-		img_url: [],
+				img_alt: [],
+				img_descr: [],
+				img_filename: [],
+				img_id: [],
+				img_legende: [],
+				img_titre: [],
+				img_url: [],
 
-		lien_archives: null,
-		lien_journal: null,
-		lien_projet: [],
-		lien_restes: null,
+				lien_archives: null,
+				lien_journal: null,
+				lien_projet: [],
+				lien_restes: null,
 
-		maj_wp: false,
+				maj_wp: false,
 
-		post_cat: [],
-		post_date: "",
-		post_descr: null,
-		post_extrait: null,
-		post_id: "",
-		post_mod: "",
-		post_perma: null,
-		post_titre_1: null,
-		post_titre_2: null,
-		post_titre_full: "",
-		post_vid_url: null,
-		tags: [],
+				post_cat: [],
+				post_date: "",
+				post_descr: null,
+				post_extrait: null,
+				post_id: "",
+				post_mod: "",
+				post_perma: null,
+				post_titre_1: null,
+				post_titre_2: null,
+				post_titre_full: "",
+				post_vid_url: null,
+				tags: [],
 
-		wp_carnet_link: null,
-		wp_carnet_on: false,
-		wp_status: null,
+				wp_carnet_link: null,
+				wp_carnet_on: false,
+				wp_status: null,
 
-		wp_import_dataset_key: null,
-		wp_import_dataset_id: null,
+				wp_import_dataset_key: null,
+				wp_import_dataset_id: null,
   };
 }
 
@@ -157,10 +164,10 @@ export function buildRestesYaml(input: RestesYamlInput, opts: EmitOptions = {}):
 
   if (combined.maj_wp == null) combined.maj_wp = true;
   if (!combined.lien_projet || combined.lien_projet.length === 0) {
-		combined.lien_projet = ["[[Photo]]", "[[Restes du futur]]"];
+				combined.lien_projet = ["[[Photo]]", "[[Restes du futur]]"];
   }
   if (!combined.post_cat || combined.post_cat.length === 0) {
-		combined.post_cat = ["photo", "restes-du-futur"];
+				combined.post_cat = ["photo", "restes-du-futur"];
   }
   if (combined.post_vid_url == null) combined.post_vid_url = "";
   if (combined.post_descr === undefined) combined.post_descr = null;
@@ -182,10 +189,10 @@ export function buildArchivesYaml(input: ArchivesYamlInput, opts: EmitOptions = 
 
   if (combined.maj_wp == null) combined.maj_wp = true;
   if (!combined.lien_projet || combined.lien_projet.length === 0) {
-		combined.lien_projet = ["[[Photo]]", "[[Archives du futur]]"];
+				combined.lien_projet = ["[[Photo]]", "[[Archives du futur]]"];
   }
   if (!combined.post_cat || combined.post_cat.length === 0) {
-		combined.post_cat = ["photo", "archives-du-futur"];
+				combined.post_cat = ["photo", "archives-du-futur"];
   }
   if (combined.post_vid_url == null) combined.post_vid_url = "";
   if (combined.post_descr === undefined) combined.post_descr = null;
@@ -207,10 +214,10 @@ export function buildJournalYaml(input: JournalYamlInput, opts: EmitOptions = {}
 
   if (combined.maj_wp == null) combined.maj_wp = true;
   if (!combined.lien_projet || combined.lien_projet.length === 0) {
-		combined.lien_projet = ["[[Photo]]", "[[Journal Photo]]"];
+				combined.lien_projet = ["[[Photo]]", "[[Journal Photo]]"];
   }
   if (!combined.post_cat || combined.post_cat.length === 0) {
-		combined.post_cat = ["photo", "journal-photo"];
+				combined.post_cat = ["photo", "journal-photo"];
   }
   if (combined.post_vid_url === undefined) combined.post_vid_url = null;
   if (combined.post_descr === undefined) combined.post_descr = null;
@@ -234,10 +241,10 @@ export function buildMinutesYaml(input: MinutesYamlInput, opts: EmitOptions = {}
 
   if (combined.maj_wp == null) combined.maj_wp = true;
   if (!combined.lien_projet || combined.lien_projet.length === 0) {
-		combined.lien_projet = ["[[Vidéo]]", "[[Minutes]]"];
+				combined.lien_projet = ["[[Vidéo]]", "[[Minutes]]"];
   }
   if (!combined.post_cat || combined.post_cat.length === 0) {
-		combined.post_cat = ["video", "minutes"];
+				combined.post_cat = ["video", "minutes"];
   }
   if (combined.post_vid_url == null) combined.post_vid_url = "";
   if (combined.post_descr === undefined) combined.post_descr = null;
@@ -271,20 +278,22 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   out.push(...emitList("img_descr", master.img_descr));
   out.push(...emitList("img_filename", master.img_filename));
   out.push(...emitList("img_id", master.img_id, quoteIds)); // ⚠️ quoted
-	{
-	  const imgLegendeValues = Array.isArray(master.img_legende) ? master.img_legende : [];
-	  const imgLegendeBlock = imgLegendeValues.length === 0
-		? ""
-		: imgLegendeValues.map(v => v ?? "").join("\n\n");
-	  pushYamlBlock(out, "img_legende", imgLegendeBlock);
-	}
+		{
+		  const imgLegendeValues = Array.isArray(master.img_legende) ? master.img_legende : [];
+		  if (imgLegendeValues.length === 0) {
+				out.push("img_legende: []");
+		  } else {
+				const imgLegendeBlock = imgLegendeValues.map(v => v ?? "").join("\n\n");
+				pushYamlBlock(out, "img_legende", imgLegendeBlock);
+		  }
+		}
   out.push(...emitList("img_titre", master.img_titre));
   out.push(...emitList("img_url", master.img_url));
   // ———————— LIEN
   out.push(YAML_SECTION_LINES.LIEN);
   out.push(emitScalar("lien_archives", master.lien_archives));
   out.push(emitScalar("lien_journal", master.lien_journal));
-	pushYamlList(out, "lien_projet", master.lien_projet); // wikilinks "[[Name]]"
+		pushYamlList(out, "lien_projet", master.lien_projet); // wikilinks "[[Name]]"
   out.push(emitScalar("lien_restes", master.lien_restes));
 
   // ———————— MAJ
@@ -293,7 +302,7 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
 
   // ———————— POST
   out.push(YAML_SECTION_LINES.POST);
-	pushYamlList(out, "post_cat", master.post_cat);
+		pushYamlList(out, "post_cat", master.post_cat);
   out.push(emitScalar("post_date", master.post_date));
   out.push(emitScalar("post_descr", master.post_descr));
   out.push(emitScalar("post_extrait", master.post_extrait));
@@ -301,96 +310,96 @@ export function emitYaml(master: MasterFields, opts: EmitOptions = {}): string {
   out.push(emitScalar("post_mod", master.post_mod));
   out.push(emitScalar("post_perma", master.post_perma));
   out.push(emitScalar("post_titre_1", master.post_titre_1));
-	out.push(emitScalar("post_titre_2", master.post_titre_2));
-	out.push(emitScalar("post_titre_full", master.post_titre_full));
-	out.push(emitScalar("post_vid_url", master.post_vid_url));
-	out.push(...emitList("tags", master.tags));
+		out.push(emitScalar("post_titre_2", master.post_titre_2));
+		out.push(emitScalar("post_titre_full", master.post_titre_full));
+		out.push(emitScalar("post_vid_url", master.post_vid_url));
+		out.push(...emitList("tags", master.tags));
 
-	// ———————— WP
-	out.push(YAML_SECTION_LINES.WP);
-	out.push(emitScalar("wp_carnet_link", master.wp_carnet_link));
-	out.push(emitScalar("wp_carnet_on", master.wp_carnet_on));
-	out.push(emitScalar("wp_status", master.wp_status));
+		// ———————— WP
+		out.push(YAML_SECTION_LINES.WP);
+		out.push(emitScalar("wp_carnet_link", master.wp_carnet_link));
+		out.push(emitScalar("wp_carnet_on", master.wp_carnet_on));
+		out.push(emitScalar("wp_status", master.wp_status));
 
-	  if (
-			master.wp_import_dataset_key != null &&
-			String(master.wp_import_dataset_key).length > 0 &&
-			master.wp_import_dataset_id != null &&
-			Number.isFinite(master.wp_import_dataset_id)
-	  ) {
-			out.push(YAML_SECTION_LINES.WP_IMPORT);
-			out.push(`wp_import_dataset_key: ${master.wp_import_dataset_key}`);
-			out.push(`wp_import_dataset_id: ${Number(master.wp_import_dataset_id)}`);
-	  }
+		  if (
+						master.wp_import_dataset_key != null &&
+						String(master.wp_import_dataset_key).length > 0 &&
+						master.wp_import_dataset_id != null &&
+						Number.isFinite(master.wp_import_dataset_id)
+		  ) {
+						out.push(YAML_SECTION_LINES.WP_IMPORT);
+						out.push(`wp_import_dataset_key: ${master.wp_import_dataset_key}`);
+						out.push(`wp_import_dataset_id: ${Number(master.wp_import_dataset_id)}`);
+		  }
 
-	out.push("---");
-	return out.join("\n");
+		out.push("---");
+		return out.join("\n");
   }
 
   function normalizeString(value: unknown): string {
-	if (value == null) return "";
-	return String(value).trim();
+		if (value == null) return "";
+		return String(value).trim();
   }
 
   function normalizeNullableString(value: unknown): string | null {
-	if (value == null) return null;
-	const str = String(value).trim();
-	return str.length > 0 ? str : null;
+		if (value == null) return null;
+		const str = String(value).trim();
+		return str.length > 0 ? str : null;
   }
 
   function normalizeBoolean(value: unknown, fallback = false): boolean {
-	if (typeof value === "boolean") return value;
-	if (typeof value === "number") return value !== 0;
-	if (typeof value === "string") {
-		  const norm = value.trim().toLowerCase();
-		  if (norm === "true" || norm === "yes" || norm === "1") return true;
-		  if (norm === "false" || norm === "no" || norm === "0") return false;
-		  if (norm.length === 0) return fallback;
-	}
-	return fallback;
+		if (typeof value === "boolean") return value;
+		if (typeof value === "number") return value !== 0;
+		if (typeof value === "string") {
+				  const norm = value.trim().toLowerCase();
+				  if (norm === "true" || norm === "yes" || norm === "1") return true;
+				  if (norm === "false" || norm === "no" || norm === "0") return false;
+				  if (norm.length === 0) return fallback;
+		}
+		return fallback;
   }
 
   function normalizeNumber(value: unknown): number | null {
-	if (value == null) return null;
-	const num = typeof value === "number" ? value : Number(value);
-	return Number.isFinite(num) ? num : null;
+		if (value == null) return null;
+		const num = typeof value === "number" ? value : Number(value);
+		return Number.isFinite(num) ? num : null;
   }
 
   function normalizeStringArray(value: unknown): string[] {
-	if (Array.isArray(value)) {
-		  return value
-			.map((item) => normalizeString(item))
-			.filter((item) => item.length > 0);
-	}
-	const single = normalizeNullableString(value);
-	return single ? [single] : [];
+		if (Array.isArray(value)) {
+				  return value
+						.map((item) => normalizeString(item))
+						.filter((item) => item.length > 0);
+		}
+		const single = normalizeNullableString(value);
+		return single ? [single] : [];
   }
 
   function normalizeRawList(value: unknown): string[] {
-	if (Array.isArray(value)) {
-		  return value
-			.map((item) => (item == null ? "" : String(item).trim()))
-			.filter((item) => item.length > 0);
-	}
-	if (typeof value === "string") {
-		  const trimmed = value.trim();
-		  if (!trimmed) return [];
-		  return [trimmed];
-	}
-	return [];
+		if (Array.isArray(value)) {
+				  return value
+						.map((item) => (item == null ? "" : String(item).trim()))
+						.filter((item) => item.length > 0);
+		}
+		if (typeof value === "string") {
+				  const trimmed = value.trim();
+				  if (!trimmed) return [];
+				  return [trimmed];
+		}
+		return [];
   }
 
   function normalizeImgLegende(value: unknown): string[] {
-	if (Array.isArray(value)) {
-		  return value
-			.map((item) => normalizeMultiline(item))
-			.filter((item) => item.length > 0);
-	}
-	const single = normalizeMultiline(value);
-	return single.length > 0 ? single.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean) : [];
+		if (Array.isArray(value)) {
+				  return value
+						.map((item) => normalizeMultiline(item))
+						.filter((item) => item.length > 0);
+		}
+		const single = normalizeMultiline(value);
+		return single.length > 0 ? single.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean) : [];
   }
 
   function normalizeMultiline(value: unknown): string {
-	if (value == null) return "";
-	return String(value).replace(/\r\n?/g, "\n").trim();
+		if (value == null) return "";
+		return String(value).replace(/\r\n?/g, "\n").trim();
   }
