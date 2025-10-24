@@ -71,15 +71,11 @@ export async function createRestesFromJournal(app: App): Promise<void> {
 		return;
 	}
 
-	const { postTitre1, postTitre2, postTitreFull } =
-		deriveRestesTitlesFromLinkText(restesTitle);
-	if (!postTitre1) {
-		new Notice(
-			"Impossible de dériver le titre Restes depuis 'lien_restes'.",
-			6000,
-		);
-		return;
-	}
+	const derivedTitles = deriveRestesTitlesFromLinkText(restesTitle);
+	const postTitre1 = derivedTitles.postTitre1 || "";
+	const postTitre2 = derivedTitles.postTitre2 || "";
+	const postTitreFull = derivedTitles.postTitreFull || restesTitle;
+	const titreCourtForPrepare = postTitre1 || postTitreFull;
 
 	const postDate = new Date(postDateIso);
 	if (Number.isNaN(postDate.getTime())) {
@@ -89,7 +85,11 @@ export async function createRestesFromJournal(app: App): Promise<void> {
 
 	const lienJournal = wrapWiki(postTitreFullJournal);
 
-	const restesInput = prepareRestesInput(imgFilenameWP, postTitre1, postDate);
+	const restesInput = prepareRestesInput(
+		imgFilenameWP,
+		titreCourtForPrepare,
+		postDate,
+	);
 	restesInput.lien_archives = lienArchivesRaw || null;
 	restesInput.lien_journal = lienJournal;
 	restesInput.lien_restes = null;
@@ -98,9 +98,7 @@ export async function createRestesFromJournal(app: App): Promise<void> {
 	restesInput.post_titre_1 = postTitre1 || null;
 	restesInput.post_titre_2 = postTitre2 || null;
 	restesInput.post_titre_full = postTitreFull;
-	if (postTitreFull) {
-		restesInput.img_legende = [postTitreFull];
-	}
+	restesInput.img_legende = postTitreFull ? [postTitreFull] : [];
 
 	const yaml = buildRestesYaml(restesInput);
 	const imageName =

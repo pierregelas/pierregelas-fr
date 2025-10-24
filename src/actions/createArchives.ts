@@ -71,15 +71,11 @@ export async function createArchivesFromJournal(app: App): Promise<void> {
 		return;
 	}
 
-	const { postTitre1, postTitre2, postTitreFull } =
-		deriveArchivesTitlesFromLinkText(archivesTitle);
-	if (!postTitre1) {
-		new Notice(
-			"Impossible de dériver le titre Archives depuis 'lien_archives'.",
-			6000,
-		);
-		return;
-	}
+	const derivedTitles = deriveArchivesTitlesFromLinkText(archivesTitle);
+	const postTitre1 = derivedTitles.postTitre1 || "";
+	const postTitre2 = derivedTitles.postTitre2 || "";
+	const postTitreFull = derivedTitles.postTitreFull || archivesTitle;
+	const titreCourtForPrepare = postTitre1 || postTitreFull;
 
 	const postDate = new Date(postDateIso);
 	if (Number.isNaN(postDate.getTime())) {
@@ -91,15 +87,13 @@ export async function createArchivesFromJournal(app: App): Promise<void> {
 
 	const archivesInput = prepareArchivesInput(
 		imgFilenameWP,
-		postTitre1,
+		titreCourtForPrepare,
 		postDate,
 	);
 	archivesInput.post_titre_1 = postTitre1 || null;
 	archivesInput.post_titre_2 = postTitre2 || null;
 	archivesInput.post_titre_full = postTitreFull;
-	if (postTitreFull) {
-		archivesInput.img_legende = [postTitreFull];
-	}
+	archivesInput.img_legende = postTitreFull ? [postTitreFull] : [];
 	archivesInput.lien_archives = null;
 	archivesInput.lien_journal = lienJournal;
 	archivesInput.lien_restes = lienRestes || null;
@@ -373,3 +367,194 @@ export async function updateArchivesFromJournal(app: App): Promise<void> {
 			8000,
 		);
 	}
+}
+
+/* -------------------- helpers -------------------- */
+
+function getFrontmatter(app: App, file: TFile): Record<string, unknown> | null {
+	const cache = app.metadataCache.getFileCache(file);
+	const fm = cache?.frontmatter;
+	if (!fm) return null;
+	const out: Record<string, unknown> = {};
+	for (const k in fm) {
+		if (k && k !== "position") out[k] = (fm as any)[k];
+	}
+	return out;
+}
+
+function readFrontmatterAndBody(raw: string): { yaml: string; body: string } {
+	const text = (raw ?? "").replace(/\r\n?/g, "\n");
+	const match = text.match(/^---\n([\s\S]*?)\n---\n?/);
+	if (!match) return { yaml: "", body: text };
+	const fm = match[1] ?? "";
+	const rest = text.slice(match[0].length);
+	return { yaml: fm, body: rest };
+}
+
+async function readMasterAndBody(
+	app: App,
+	file: TFile,
+): Promise<{ master: MasterFields; body: string }> {
+	const raw = await app.vault.read(file);
+	const { yaml, body } = readFrontmatterAndBody(raw);
+	let parsed: any = {};
+	if (yaml && yaml.trim().length > 0) {
+		try {
+			parsed = yamlLoad(yaml) ?? {};
+		} catch (err) {
+			console.warn("[pierregelas-fr] YAML parse error", err);
+			parsed = {};
+		}
+	}
+	const master = normalizeMasterFields(parsed as Partial<MasterFields>);
+	return { master, body };
+}
+
+function assembleDocument(yaml: string, body: string): string {
+	const yamlBlock = yaml.endsWith("\n") ? yaml : `${yaml}\n`;
+	const normalizedBody = body.replace(/\r\n?/g, "\n");
+	let content = yamlBlock;
+	if (normalizedBody.length > 0) {
+		if (!normalizedBody.startsWith("\n")) content += "\n";
+		content += normalizedBody;
+	} else if (!content.endsWith("\n")) {
+		content += "\n";
+	}
+	if (!content.endsWith("\n")) content += "\n";
+	return content;
+}
+
+function applyMasterUpdate(
+	master: MasterFields,
+	key: string,
+	value: string | string[],
+): void {
+	const arrayKeys = new Set([
+		"img_alt",
+		"img_descr",
+		"img_filename",
+		"img_id",
+		"img_legende",
+		"img_titre",
+		"img_url",
+		"lien_projet",
+		"post_cat",
+		"tags",
+	]);
+
+	if (arrayKeys.has(key)) {
+		const arr = Array.isArray(value)
+			? value.map((v) => String(v ?? "").trim()).filter(Boolean)
+			: [String(value ?? "").trim()].filter(Boolean);
+		(master as any)[key] = arr;
+		return;
+	}
+
+	if (
+		key === "lien_archives" ||
+		key === "lien_journal" ||
+		key === "lien_restes"
+	) {
+		(master as any)[key] = value ? String(value) : null;
+		return;
+	}
+
+	(master as any)[key] = Array.isArray(value)
+		? String(value[0] ?? "")
+		: String(value ?? "");
+}
+
+function str(v: unknown): string {
+	const first = firstValue(v);
+	if (first == null) return "";
+	if (typeof first === "string") return first.trim();
+	if (first instanceof Date) return first.toISOString();
+	if (typeof first === "number" || typeof first === "boolean") {
+		return String(first).trim();
+	}
+	return "";
+}
+
+function num(v: unknown): number | null {
+	const first = firstValue(v);
+	if (first == null) return null;
+	if (typeof first === "number") return Number.isFinite(first) ? first : null;
+	if (typeof first === "string") {
+		const trimmed = first.trim();
+		if (!trimmed) return null;
+		const parsed = Number(trimmed);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+	return null;
+}
+
+function extractFirstString(v: unknown): string {
+	const first = firstValue(v);
+	if (first == null) return "";
+	if (typeof first === "string") return first.trim();
+	return String(first ?? "").trim();
+}
+
+function toStringArray(v: unknown): string[] {
+	if (!v) return [];
+	if (Array.isArray(v)) return v.map((x) => String(x).trim()).filter(Boolean);
+	const s = String(v).trim();
+	return s ? [s] : [];
+}
+
+function firstValue(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		for (const item of value) {
+			if (item != null) return item;
+		}
+		return undefined;
+	}
+	return value;
+}
+
+function unwrapWiki(s: string): string {
+	const m = s.trim().match(/^\[\[(.*)\]\]$/);
+	return m ? m[1].trim() : s.trim();
+}
+
+function wrapWiki(s: string): string {
+	return s ? `[[${s}]]` : "";
+}
+
+function basenameNoExt(name: string): string {
+	return name.replace(/\.md$/i, "");
+}
+
+function eqCaseSensitive(a: string, b: string): boolean {
+	return String(a) === String(b);
+}
+
+function sameStringArray(a: string[], b: string[]): boolean {
+	const as = [...(a || [])].map(String).sort();
+	const bs = [...(b || [])].map(String).sort();
+	if (as.length !== bs.length) return false;
+	for (let i = 0; i < as.length; i++) if (as[i] !== bs[i]) return false;
+	return true;
+}
+
+function findArchivesByPostDate(app: App, postDateIso: string): TFile | null {
+	const files = app.vault.getMarkdownFiles();
+	for (const f of files) {
+		const fm = app.metadataCache.getFileCache(f)?.frontmatter;
+		if (!fm) continue;
+		const cat = fm.post_cat;
+		const isArch =
+			(typeof cat === "string" &&
+				cat.trim().toLowerCase() === "archives-du-futur") ||
+			(Array.isArray(cat) &&
+				cat.some(
+					(x) =>
+						String(x).trim().toLowerCase() === "archives-du-futur",
+				));
+		if (!isArch) continue;
+
+		const d = fm.post_date ? String(fm.post_date).trim() : "";
+		if (d && d === postDateIso) return f;
+	}
+	return null;
+}
