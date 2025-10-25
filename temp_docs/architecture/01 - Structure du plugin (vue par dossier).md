@@ -1,4 +1,4 @@
-_Last updated: 2025-10-23 — Plugin v0.1.0_
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 
 
 
@@ -61,11 +61,11 @@ Services transverses réutilisables.
 
 ### 📂 `src/ui/`
 
-Interface utilisateur (commandes/modales) et **journal d’import CSV WP**.
+Interface utilisateur : commandes palette, modales et **journal d’import CSV WP**.
 
 |Fichier|Rôle|
 |---|---|
-|`commands.ts`|Commande **“Importer un CSV WordPress”** : sélection CSV, **dry-run**, choix du dossier, import réel, et **écriture du journal d’import** **dans `NEW/LOGS/`** (incluant `## Erreurs` détaillé depuis `summary.error_records`).|
+|`commands.ts`|Entrée palette (incluant **“Importer un CSV WordPress”**) : sélection CSV, **dry-run**, choix du dossier, import réel, et **écriture du journal d’import** **dans `NEW/LOGS/`** (incluant `## Erreurs` détaillé depuis `summary.error_records`).|
 |`previewModal.ts`|Modale de prévisualisation (totaux, identiques/modifiées, erreurs).|
 
 ### 📂 `src/modals/`

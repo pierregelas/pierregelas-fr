@@ -1,10 +1,10 @@
 # Points d’attention et spécificités techniques
-_Last updated: 2025-10-23 — Plugin v0.1.0_
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 
 ## Invariants techniques (à ne pas casser)
 - Source unique des erreurs: le journal d’import lit uniquement `summary.error_records` (collecté en mémoire dans `actions/importWordpress.ts`) et n’effectue jamais de parsing des fichiers `ERROR_*`.
 - Bloc `## Erreurs` du journal d’import: rendu par `ui/commands.ts`, avec sous-lignes dans l’ordre fixe `wp_error` → `post-id` → `wp_row_index` → `wp_id_raw` → `wp_titre_raw` → `error_type`, et sans ligne vide entre items.
-- Séparation des journaux: Import CSV WP → `NEW/LOGS/`; services (ex. Tags) → `wp_tags/logs_tests/`.
+- Séparation des journaux: Import CSV WP → `NEW/LOGS/`; services Tags → `wp_tags/logs_tests/` (autres flux sans journal dédié).
 - Conventions CSV: `wp_tags` séparés par `,`; `wp_categories` hiérarchisés via `>` ou `,` (gérés par `splitHierarchy`); images multiples via `||`.
 - YAML frontmatter: généré via core (`yamlMaster.ts`), patchs via services (`yamlPatch.ts`); ne pas contourner ces couches depuis l’UI.
 - Listes wikilink (`lien_projet`, `post_cat` dérivés WP) sérialisées via `pushYamlList` → items forcés en `'[[...]]'` (apostrophes internes doublées) pour éviter le rendu `[[["..."]]]` d’Obsidian.
@@ -21,8 +21,7 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
 - README: installation, commandes, configuration avancée, FAQ, exemples.
 - temp_docs/architecture/01 - Structure du plugin (vue par dossier).md: responsabilités par fichier.
 - temp_docs/architecture/02 - Flux fonctionnels du plugin.md: pipelines complets par flux.
-- workflows/: scénarios détaillés (Minutes, Journal, Archives, Tags) — à maintenir en parallèle des migrations.
-- troubleshooting/: checklists et arbres de décision — ajouter des cas concrets au fur et à mesure des bugs résolus.
+- temp_docs/workflows/: scénarios détaillés (Import WordPress, Minutes, Journal, Archives, Restes, Tags, ModifyNote) — à maintenir en parallèle des migrations.
 
 ## Mini check QA (avant tout merge ou refactor)
 - La commande “Importer un CSV WordPress” génère bien `NEW/LOGS/import-*.md` dans le vault.
@@ -40,7 +39,7 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
 ## Échantillons et exemples (à enrichir)
 - YAML généré (extrait minimal) — voir README: section “Exemples”.
 - Journal — sections “Modifiées” et “Erreurs” (exemples) — voir README.
-- CSV d’essai: conserver un petit dataset 4 lignes (OK, TITRE_MANQUANT, LIGNE_VIDE, ID_INVALIDE) dans `temp_docs/workflows/examples/`.
+- CSV d’essai: conserver un petit dataset 4 lignes (OK, TITRE_MANQUANT, LIGNE_VIDE, ID_INVALIDE) aux côtés des workflows (ex. `temp_docs/workflows/demo-data/`).
 
 ## Pratiques de debug
 - En cas d’erreurs nombreuses: ouvrir le journal `NEW/LOGS/import-*.md`, trier visuellement par `wp_row_index`, corriger le CSV, relancer.

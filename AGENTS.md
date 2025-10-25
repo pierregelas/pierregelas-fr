@@ -250,6 +250,15 @@ this.registerInterval(window.setInterval(() => { /* ... */ }, 1000));
 - Plugin guidelines: https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines
 - Style guide: https://help.obsidian.md/style-guide
 
+## Documentation & suivi des versions
+
+- `README.md` présente les fonctionnalités, le guide d’utilisation et les liens vers la documentation interne.
+- `temp_docs/architecture/` décrit l’architecture, les flux et les invariants techniques (tous les fichiers doivent indiquer `_Last updated: YYYY-MM-DD — Plugin vX.Y.Z_`).
+- `temp_docs/modals-README.md` centralise les conventions UI pour les modales (libellés, interactions, flux).
+- `temp_docs/services-README.md` recense les helpers transverses, leurs invariants et les actions qui les utilisent.
+- `temp_docs/workflows/` documente chaque commande/action du plugin avec son déroulé détaillé.
+- `CHANGELOG.md` suit les évolutions du plugin au format **Keep a Changelog** : chaque release doit mettre à jour cette source avant publication GitHub.
+
 ## 📦 Conventions internes du plugin
 
 ### 🧭 Pipeline logique
@@ -263,10 +272,10 @@ UI → Action → Core → Services
 
 ### 📁 Rôle des dossiers
 
-- `actions/` : logique principale déclenchée par l’UI
-- `core/` : fonctions pures, typage, transformation
-- `services/` : interactions avec Obsidian (read/write)
-- `commands/` : anciennes commandes, à migrer vers `actions/`
+- `actions/` : logique principale déclenchée par l’UI.
+- `core/` : fonctions pures, typage, transformation.
+- `services/` : interactions avec Obsidian (lecture/écriture, helpers transverses).
+- `ui/` : commandes palette et modales utilisateur (le dépôt n’a plus de dossier `src/commands/` dédié).
 
 ### 🧩 Builders YAML
 

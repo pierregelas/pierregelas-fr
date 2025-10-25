@@ -1,4 +1,4 @@
-_Last updated: 2025-10-23 — Plugin v0.1.0_
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 ### 🔄 Flux : Importation CSV WordPress (du clic au journal)
 
 1. **UI** `ui/commands.ts`
@@ -34,9 +34,7 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
     
 - Analyse les notes d’archives existantes, compare les métadonnées (`post_date`, `wp_categories`, etc.) et crée ou met à jour les entrées manquantes.
     
-- Peut s’appuyer sur `core/archivesUtils.ts` pour le tri et la validation.
-    
-- Produit des logs spécifiques (résumés des fichiers ajoutés/ignorés) via `services/actionLogger.ts`.
+- S’appuie sur `services/archivesUtils.ts` pour les dérivations de titres et la transformation des noms d’images.
     
 - Diff modale (P2) → YAML maître réécrit via `buildYamlMaster` (préserve les sections).
 
@@ -44,11 +42,11 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
 
 - Commandes destinées au **recalcul des journaux chronologiques**.
     
-- Utilisent `core/journalUtils.ts` pour recalculer les liens temporels, les index et les références croisées (“avant/après”).
+- Utilisent `services/journalUtils.ts` et `services/dateUtils.ts` pour recalculer les liens temporels, les index et les références croisées (“avant/après”).
     
 - `createJournal.ts` pilote la création/mise à jour des pages de journal, tandis que `journalRecalc.ts` effectue un recalcul ciblé sur les dates ou catégories.
     
-- Logs simplifiés produits via `actionLogger.ts` (pas de `NEW/LOGS`).
+- Retour utilisateur via notices et modales (aucune écriture de log dédiée en dehors de la note Journal elle-même).
     
 - YAML maître généré via `buildYamlMaster`; journaux dédiés toujours gérés via notices modales (pas de NEW/LOGS).
 
@@ -70,11 +68,9 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
     
 - Ajoute ou met à jour des métadonnées (ex. ajout de tags, mise à jour du frontmatter YAML).
     
-- Utilise directement les utilitaires `core/yamlPatch.ts`.
-    
-- Génère des logs succincts via `actionLogger.ts`.
-    
-- À migrer vers une action normalisée dans `src/actions/` avec support du `ImportSummary` (pour suivi complet des modifications et erreurs).
+- Utilise directement les utilitaires `services/yamlPatch.ts` (dont `patchTagsAndMaj`).
+
+- Pas de log Markdown dédié : feedback via la modale de sélection et les notices Obsidian.
 
 ### 🌌 Flux : Restes du futur (`src/actions/createRestes.ts`)
 
@@ -92,8 +88,8 @@ _Last updated: 2025-10-23 — Plugin v0.1.0_
 
 ### 🧾 Flux : Logging global (autres modules)
 
-- **Service** `services/actionLogger.ts`  
-    → Journaux génériques (ex. Tags) **dans `wp_tags/logs_tests/`**.
+- **Service** `services/actionLogger.ts`
+    → Journaux génériques (utilisé aujourd’hui par l’action Tags) **dans `wp_tags/logs_tests/`**.
     
 - **Important** : ce service **n’écrit pas** le journal d’**import CSV WP** (géré par `ui/commands.ts` dans `NEW/LOGS/`).
     

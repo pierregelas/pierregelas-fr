@@ -1,4 +1,5 @@
 # Services du dossier `src/services`
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 
 Cette fiche récapitule chaque module de services et détaille pour chacune de leurs fonctions : leur rôle, les invariants qu'elles gèrent et les actions (ou autres modules) qui les invoquent dans le plugin. Les descriptions suivent l'ordre alphabétique des fichiers.
 

@@ -1,4 +1,5 @@
 # Workflow — Import WordPress CSV
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 
 ## Objectif
 Décrire le déroulé complet de l’action `importWordpressCsv()` (`src/actions/importWordpress.ts`) qui transforme un export WordPress en notes Obsidian conformes au YAML maître du plugin.

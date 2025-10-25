@@ -1,4 +1,5 @@
 # Workflows — Restes du futur depuis une note Journal
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 
 ## Objectif
 Présenter les actions `createRestesFromJournal()` et `updateRestesFromJournal()` (`src/actions/createRestes.ts`) qui automatisent la création puis la synchronisation d'une note *Restes du futur* à partir d'un Journal Photo.

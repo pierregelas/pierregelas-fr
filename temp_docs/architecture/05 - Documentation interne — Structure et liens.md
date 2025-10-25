@@ -1,5 +1,5 @@
 # Documentation interne — Structure et liens
-_Last updated: 2025-10-22 — Plugin v0.1.0_
+_Last updated: 2025-10-24 — Plugin v0.6.0_
 
 ## Objectif
 Centraliser les points d’entrée de la documentation interne du plugin `pierregelas-fr`, afin de faciliter :
@@ -53,12 +53,12 @@ _Last updated: YYYY-MM-DD — Plugin vX.Y.Z_
 ### 3. Lien avec le README public
 - Ajouter dans le README (section « Documentation interne ») :
 	- Voir temp_docs/architecture/ pour l’architecture détaillée et les flux internes.
-
+        - Pointer également vers modals-README, services-README et workflows/ pour guider les contributeurs selon leurs besoins.
 
 ### 4. Exemples et ressources
 - YAML et journaux : réutiliser les extraits du README public.
 - Captures d’écran de la modale (prévisualisation CSV) à ajouter dans `workflows/`.
-- CSV d’essai : stocker dans `temp_docs/workflows/examples/`.
+- CSV d’essai : stocker avec les workflows (ex. `temp_docs/workflows/demo-data/`).
 
 ### 5. Cycle de mise à jour
 1. Avant release → vérifier que tous les fichiers `temp_docs/` sont alignés avec le code.
