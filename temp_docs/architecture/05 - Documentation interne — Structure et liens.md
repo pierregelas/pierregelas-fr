@@ -1,5 +1,5 @@
 # Documentation interne — Structure et liens
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Centraliser les points d’entrée de la documentation interne du plugin `pierregelas-fr`, afin de faciliter :
@@ -10,13 +10,27 @@ Centraliser les points d’entrée de la documentation interne du plugin `pierre
 
 ## Structure du dossier `temp_docs/`
 
-temp_docs/  
-├─ architecture/  
-│ ├─ 01 - Structure du plugin (vue par dossier).md  
-│ ├─ 02 - Flux fonctionnels du plugin.md  
-│ ├─ 03 - Points d’attention et spécificités techniques.md  
-│ ├─ 04 - Annexes (types et interfaces).md  
-│ └─ 05 - Documentation interne — Structure et liens.md  
+temp_docs/
+├─ architecture/
+│ ├─ 01 - Structure du plugin (vue par dossier).md
+│ ├─ 02 - Flux fonctionnels du plugin.md
+│ ├─ 03 - Points d’attention et spécificités techniques.md
+│ ├─ 04 - Annexes (types et interfaces).md
+│ └─ 05 - Documentation interne — Structure et liens.md
+├─ workflows/
+│ ├─ createMinutes.md
+│ ├─ createJournal.md
+│ ├─ createArchives.md
+│ ├─ createRestes.md
+│ ├─ modifyNote.md
+│ ├─ journalRecalc.md
+│ └─ ImportWordpress.md / TagsFromCsv.md
+├─ modals-README.md
+├─ services-README.md
+└─ old-documents-for-archives/
+   ├─ OLD_ACTION_template.md
+   ├─ OLD_ACTION-*.md (archives d’actions historiques)
+   └─ OLD_*.md (README, settings, agents, imports…)
 
 
 
@@ -26,6 +40,23 @@ temp_docs/
 ### architecture/
 - Vue complète du code (dossiers, flux, types, contraintes).
 - Sert de référence principale pour Codex lors des audits de cohérence.
+
+### workflows/
+- Mode d’emploi opérationnel de chaque commande (pas-à-pas, cas limites, extraits YAML).
+- Source des exemples “vivants” à citer dans le README public et les revues Codex.
+
+### modals-README.md
+- Conventions UI (libellés, placements, interactions) partagées entre les différentes modales.
+- Point de départ pour harmoniser les captures ou stories Figma lorsque l’UI évolue.
+
+### services-README.md
+- Catalogue des helpers transverses et de leurs invariants (lecture/écriture Obsidian, parsing CSV, etc.).
+- À mettre à jour en priorité après chaque refactor de `src/services/`.
+
+### old-documents-for-archives/
+- Snapshots des documents de travail **avant migration Codex**.
+- À consulter pour récupérer des règles ou exemples historiques, mais **ne pas modifier** (archives figées).
+- Les sections `## Logs` servent à alimenter le `CHANGELOG.md` si une information manque côté releases.
 
 
 ## Bonnes pratiques de maintenance
