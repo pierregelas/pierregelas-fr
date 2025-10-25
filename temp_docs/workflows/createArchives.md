@@ -1,5 +1,5 @@
 # Workflows — Archives du futur depuis une note Journal
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Documenter les actions `createArchivesFromJournal()` et `updateArchivesFromJournal()` (`src/actions/createArchives.ts`) qui pilotent respectivement la création et la synchronisation d'une note *Archives du futur* à partir d'une note *Journal Photo* existante.

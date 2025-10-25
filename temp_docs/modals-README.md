@@ -1,5 +1,5 @@
 # Modales du dossier `src/modals`
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 Cette fiche recense toutes les modales fournies par le plugin. Pour chaque module, elle décrit les types publics, le flux utilisateur géré et les actions qui invoquent la modale. L'ordre suit l'alphabet des fichiers.
 

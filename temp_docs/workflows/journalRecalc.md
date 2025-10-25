@@ -1,5 +1,5 @@
 # Workflow — Recalcul des titres d'une note Journal
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Expliquer l'action `registerJournalRecalcCommand()` (`src/actions/journalRecalc.ts`) qui ajoute la commande palette « Journal → Recalculer titres depuis post_titre_1 » afin de synchroniser les titres, liens et nom de fichier d'un Journal Photo à partir de `post_titre_1`.

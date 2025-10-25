@@ -1,5 +1,5 @@
 # Workflow — Modification des tags d'une note
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Documenter l'action `registerModifyNoteCommand()` (`src/actions/modifyNote.ts`) qui ajoute la commande palette « Modifier une note (v0.1 tags) » et orchestre la mise à jour des tags YAML d'une note active.

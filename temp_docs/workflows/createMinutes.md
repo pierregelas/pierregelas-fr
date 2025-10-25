@@ -1,5 +1,5 @@
 # Workflow — Création d'une note Minutes
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Documenter l'action `createMinutes()` (`src/actions/createMinutes.ts`) qui guide l'utilisateur dans la génération d'une note *Minutes* complète à partir d'un nom de fichier vidéo et d'un lien de diffusion.

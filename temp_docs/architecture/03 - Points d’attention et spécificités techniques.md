@@ -1,5 +1,5 @@
 # Points d’attention et spécificités techniques
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Invariants techniques (à ne pas casser)
 - Source unique des erreurs: le journal d’import lit uniquement `summary.error_records` (collecté en mémoire dans `actions/importWordpress.ts`) et n’effectue jamais de parsing des fichiers `ERROR_*`.

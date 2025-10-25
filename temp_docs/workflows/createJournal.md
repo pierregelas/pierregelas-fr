@@ -1,5 +1,5 @@
 # Workflow — Création d'une note Journal Photo
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Décrire l'action `createJournal()` (`src/actions/createJournal.ts`) qui fabrique une note *Journal Photo* complète à partir d'un nom de dossier horodaté et d'un nom de fichier image WordPress.

@@ -1,5 +1,5 @@
 # Workflow — Mise à jour des tags depuis le dernier CSV
-_Last updated: 2025-10-24 — Plugin v0.6.0_
+_Last updated: 2025-10-24 — Plugin v0.7.0_
 
 ## Objectif
 Décrire l'action `registerTagsCommand()` (`src/actions/tags.ts`) qui implémente la commande palette « Tags → Mettre à jour depuis le dernier CSV (WP → Obsidian) » : comparaison entre le dernier export WordPress et la table locale `ob_tags_table.md`, avec diff interactive, backup et journalisation optionnelle.

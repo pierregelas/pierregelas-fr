@@ -58,7 +58,6 @@ temp_docs/
 - À consulter pour récupérer des règles ou exemples historiques, mais **ne pas modifier** (archives figées).
 - Les sections `## Logs` servent à alimenter le `CHANGELOG.md` si une information manque côté releases.
 
-
 ## Bonnes pratiques de maintenance
 
 ### 1. Versionnement
