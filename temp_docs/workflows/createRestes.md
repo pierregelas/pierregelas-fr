@@ -46,10 +46,78 @@ Présenter les actions `createRestesFromJournal()` et `updateRestesFromJournal()
 6. **Génération du corps** : template Markdown identique à Archives (Photo + Notes).
 7. **Écriture** : `createNoteFile()` crée la note ; `Notice` succès ou erreur.
 
+### YAML généré (création)
+```yaml
+---
+cover: <img_filename_REI>
+
+IMAGES: ______________________________________________________________________
+
+img_alt: <post_titre_1>
+img_descr: []
+img_filename: <img_filename_REI>   # `_WP` → `_REI`
+img_id: []
+img_legende: <post_titre_full>
+img_titre: []
+img_url: []
+
+LIEN: ______________________________________________________________________
+
+lien_archives: <reprise du Journal>
+lien_journal: [[<post_titre_full_Journal>]]
+lien_projet:
+  - "[[Photo]]"
+  - "[[Restes du futur]]"
+lien_restes: []
+
+MAJ: ______________________________________________________________________
+
+maj_wp: true
+
+POST: ______________________________________________________________________
+
+post_cat:
+  - photo
+  - restes-du-futur
+post_date: <copie de la note Journal>
+post_descr: []
+post_extrait: []
+post_id: []
+post_mod: []
+post_perma: []
+post_titre_1: <dérivé du lien>
+post_titre_2: <dérivé du lien>
+post_titre_full: <dérivé du lien>
+post_vid_url: []
+tags: []
+
+WP: ______________________________________________________________________
+
+wp_carnet_link: []
+wp_carnet_on: false
+wp_status: draft
+---
+```
+
+### Corps Markdown
+```markdown
+## Photo
+![[<img_filename_REI>]]
+
+## Notes
+![[<post_titre_full>_notes]]
+```
+
+### Règles métier essentielles
+- `img_filename_REI` : dérivé de `img_filename` Journal avec `toReiImageNameFromWp` (`_WP` → `_REI`).
+- `post_titre_*` : `deriveRestesTitlesFromLinkText` accepte un wikilink déjà préfixé ou non par « Restes ».
+- `lien_archives` : repris de la note Journal pour maintenir le triangle complet.
+- `maj_wp` reste `true` (création locale), même si aucun tag n'est renseigné.
+
 ## Déroulé détaillé — Mise à jour
 1. **Trouver la note Restes** :
    - Chercher via `unwrapWiki(lien_restes)` puis `vault.getAbstractFileByPath()`.
-  - Sinon `findRestesByPostDate(app, post_date)`.
+   - Sinon `findRestesByPostDate(app, post_date)`.
 2. **Analyse des frontmatters** : `normalizeMasterFields()` pour Journal & Restes.
 3. **Construction diff** :
    - Items communs (groupe A) : `post_date`, `tags`.
@@ -65,6 +133,11 @@ Présenter les actions `createRestesFromJournal()` et `updateRestesFromJournal()
    - Aucune sélection → notice "Aucun changement".
    - Succès → notice positive.
    - Erreurs → log + notice.
+
+### Champs proposés dans la diff
+- **Bloc A** : `post_date`, `tags`, `maj_wp`.
+- **Bloc B** : `post_titre_1`, `post_titre_2`, `post_titre_full`, `img_filename`, `img_legende`, `lien_journal`, `lien_archives`, `cover`.
+- Renommage : proposé si `post_titre_full` recalculé diffère.
 
 ## Articulation avec la couche UI
 - Commandes palette dédiées déclenchent ces workflows.

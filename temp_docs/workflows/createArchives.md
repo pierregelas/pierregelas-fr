@@ -45,6 +45,74 @@ Documenter les actions `createArchivesFromJournal()` et `updateArchivesFromJourn
 6. **Contenu Markdown** : template commun (section Photo + Notes).
 7. **Écriture** : `createNoteFile()` crée la note et affiche `Notice` de succès ; erreurs loguées + `Notice` d'échec.
 
+### YAML généré (création)
+```yaml
+---
+cover: <img_filename_BF>
+
+IMAGES: ______________________________________________________________________
+
+img_alt: <post_titre_1>
+img_descr: []
+img_filename: <img_filename_BF>   # `_WP` → `_BF`
+img_id: []
+img_legende: <post_titre_full>
+img_titre: []
+img_url: []
+
+LIEN: ______________________________________________________________________
+
+lien_archives: []
+lien_journal: [[<post_titre_full_Journal>]]
+lien_projet:
+  - "[[Photo]]"
+  - "[[Archives du futur]]"
+lien_restes: <reprise du Journal>
+
+MAJ: ______________________________________________________________________
+
+maj_wp: true
+
+POST: ______________________________________________________________________
+
+post_cat:
+  - photo
+  - archives-du-futur
+post_date: <copie de la note Journal>
+post_descr: []
+post_extrait: []
+post_id: []
+post_mod: []
+post_perma: []
+post_titre_1: <dérivé du lien>
+post_titre_2: <dérivé du lien>
+post_titre_full: <dérivé du lien>
+post_vid_url: []
+tags: []
+
+WP: ______________________________________________________________________
+
+wp_carnet_link: []
+wp_carnet_on: false
+wp_status: draft
+---
+```
+
+### Corps Markdown
+```markdown
+## Photo
+![[<img_filename_BF>]]
+
+## Notes
+![[<post_titre_full>_notes]]
+```
+
+### Règles métier essentielles
+- `img_filename_BF` : conversion `_WP.webp` → `_BF.webp` via `toBfImageNameFromWp`.
+- `post_titre_*` : `deriveArchivesTitlesFromLinkText` travaille sur le texte du wikilink (`[[...]]`).
+- `lien_restes` : copié tel quel depuis la note Journal pour préserver la triangulation Journal ↔ Archives ↔ Restes.
+- `maj_wp` forcé à `true` pour signaler une création locale.
+
 ## Déroulé détaillé — Mise à jour
 1. **Localisation de la note Archives** :
    - `unwrapWiki(lien_archives)` → tentative directe `vault.getAbstractFileByPath("<titre>.md")`.
@@ -64,6 +132,12 @@ Documenter les actions `createArchivesFromJournal()` et `updateArchivesFromJourn
    - Aucun changement sélectionné → `Notice` dédiée.
    - Succès → `Notice` « mise à jour ».
    - Exceptions → log console + `Notice` d'erreur.
+
+### Champs proposés dans la diff
+- **Bloc A (toujours cochable)** : `post_date`, `tags`, `maj_wp`.
+- **Bloc B (lié au renommage)** : `post_titre_1`, `post_titre_2`, `post_titre_full`, `img_filename`, `img_legende`, `lien_journal`, `lien_restes`, `cover`.
+- Renommage du fichier : proposé uniquement si `post_titre_full` recalculé diffère.
+
 
 ## Articulation avec la couche UI
 - Les commandes palette « Créer Archives du futur » et « Synchroniser Archives du futur » appellent respectivement les deux actions.

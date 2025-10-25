@@ -1,7 +1,58 @@
 # Services du dossier `src/services`
-_Last updated: 2025-10-24 — Plugin v0.7.0_
+_Last updated: 2025-10-25 — Plugin v0.7.0_
 
 Cette fiche récapitule chaque module de services et détaille pour chacune de leurs fonctions : leur rôle, les invariants qu'elles gèrent et les actions (ou autres modules) qui les invoquent dans le plugin. Les descriptions suivent l'ordre alphabétique des fichiers.
+
+## Paramètres globaux du plugin
+- **Emplacement** : *Paramètres → pierregelas.fr → Écrire des logs d’actions*.
+- **Clé interne** : `loggingEnabled` (persistée via `settings.ts`).
+- **Comportement** :
+  - `true` (défaut) → active la création de fichiers Markdown dans `wp_tags/logs_tests/` pour les actions qui supportent la journalisation (aujourd’hui la synchronisation des tags).
+  - `false` → aucune écriture de log ; les workflows continuent sans impact fonctionnel.
+- **Répertoires utilisés** :
+  - `wp_tags/logs_tests/` pour les journaux détaillés.
+  - `wp_tags/backup/` pour les sauvegardes de la table de tags.
+- **Roadmap associée** :
+  - Sélecteur manuel de CSV pour l’action Tags.
+  - Niveaux de verbosité (normal/minimal).
+  - Rotation automatique des logs (conserver les *N* derniers fichiers).
+
+## Mapping YAML Import WordPress
+Ce tableau centralise la correspondance entre les champs du YAML maître généré lors de l’import CSV et les colonnes (ou calculs) issues du fichier WordPress v2.
+
+| YAML maître | Source CSV | Règles de transformation |
+| --- | --- | --- |
+| `cover` | `wp_img_url` | Première URL si séparée par `\|`, sinon valeur brute (`trim`). |
+| `img_alt` | `wp_img_alt` | Copie ou liste (`\|` → tableau). |
+| `img_descr` | `wp_img_descr` | Copie ou liste (`\|` → tableau). |
+| `img_filename` | `wp_img_filename` | Copie ou liste (`\|` → tableau). |
+| `img_id` | `wp_img_id` | Liste (`\|`) avec chaque id entre guillemets (`"123"`). |
+| `img_legende` | `wp_img_caption` | Copie ou liste (`\|`). |
+| `img_titre` | `wp_img_titre` | Copie ou liste (`\|`). |
+| `img_url` | `wp_img_url` | Copie ou liste (`\|`). |
+| `lien_archives` | — | Vide (rempli par les workflows Journal). |
+| `lien_journal` | — | Vide (ajouté côté Archives/Restes). |
+| `lien_projet` | `wp_categories` | `split('>')` → `trim` → déduplication → wikilinks `[[…]]` (liste). |
+| `lien_restes` | — | Vide (rempli ultérieurement). |
+| `maj_wp` | — | `false` (source WordPress). |
+| `post_cat` | `wp_categories` | Liste de slugs (`split('>')` + `trim` + dédup). |
+| `post_date` | `wp_date` | `YYYY-MM-DD HH:MM:SS` → `YYYY-MM-DDTHH:MM:SS` (ajoute `T00:00:00` si heure absente). |
+| `post_descr` | `wp_a_descr_gen` | Copie (`trim`). |
+| `post_extrait` | `wp_extrait` | Copie. |
+| `post_id` | `wp_id` | Copie (string). |
+| `post_mod` | `wp_date_modified` | Identique à `post_date`. |
+| `post_perma` | `wp_perma` | URL brute. |
+| `post_titre_1` | `wp_a_titre_gen` | Copie, fallback sur `wp_titre` (partie gauche). |
+| `post_titre_2` | `wp_a_stitre_gen` | Copie, fallback sur `wp_titre` (partie droite). |
+| `post_titre_full` | `wp_titre` | Copie stricte. |
+| `post_vid_url` | `wp_a_videolink_gen` | URL si valide, sinon vide. |
+| `tags` | `wp_tags` | `split(',')` → `trim` → `slugify_wp` → déduplication → liste YAML. |
+| `wp_carnet_link` | `wp_carnet_link` | URL ou vide. |
+| `wp_carnet_on` | `wp_carnet_on` | Booléen (`true` si valeur non vide). |
+| `wp_status` | `wp_status` | Copie (`publish`, `pending`, …). |
+| Bloc `WP-IMPORT` | Nom du fichier CSV | `datasetKey` + `datasetId` extraits par `parseCsvNameV2`. |
+
+> Les champs affichés comme `—` sont laissés vides lors de l’import initial et seront renseignés par les workflows dédiés (Journal, Archives, Restes…).
 
 ## `actionLogger.ts`
 - **`beginActionLog(vault, actionId, opts)`** : crée un fichier Markdown de log dans `wp_tags/logs_tests`, initialise un frontmatter riche (compteurs diff/applied, métadonnées CSV) puis renvoie le chemin et un horodatage de départ.【F:src/services/actionLogger.ts†L117-L209】 La commande `updateTagsFromLastCsv` utilise cette étape lorsque le logging est activé afin de tracer les opérations sur la table locale des tags.【F:src/actions/tags.ts†L92-L142】

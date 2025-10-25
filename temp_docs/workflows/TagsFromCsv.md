@@ -1,5 +1,5 @@
 # Workflow — Mise à jour des tags depuis le dernier CSV
-_Last updated: 2025-10-24 — Plugin v0.7.0_
+_Last updated: 2025-10-25 — Plugin v0.7.0_
 
 ## Objectif
 Décrire l'action `registerTagsCommand()` (`src/actions/tags.ts`) qui implémente la commande palette « Tags → Mettre à jour depuis le dernier CSV (WP → Obsidian) » : comparaison entre le dernier export WordPress et la table locale `ob_tags_table.md`, avec diff interactive, backup et journalisation optionnelle.
@@ -108,6 +108,8 @@ Décrire l'action `registerTagsCommand()` (`src/actions/tags.ts`) qui implément
 - `hasLocalWithoutIdMissingInCsv` influence le booléen `wp_update` : vérifier la cohérence fonctionnelle de ce champ.
 - Les backups peuvent s'accumuler : prévoir un nettoyage périodique.
 - Le log peut contenir des données sensibles (liste complète des tags) ; attention à la volumétrie.
+- Les marqueurs `obm` (modifié localement) et `obc` (créé localement) restent la référence pour savoir si un slug/name peut être
+  écrasé ; la diff protège automatiquement ces cas.
 
 ## Extensions possibles
 - Support du choix manuel du CSV si plusieurs exports coexistent.

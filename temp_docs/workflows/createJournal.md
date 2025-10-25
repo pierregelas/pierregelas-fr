@@ -61,6 +61,81 @@ Décrire l'action `createJournal()` (`src/actions/createJournal.ts`) qui fabriqu
 - `createNoteFile(app.vault, postTitreFull, yaml, body)` crée (ou renomme) la note.
 - Notice de succès mentionnant le nom final ; en cas d'erreur → log console + notice d'échec.
 
+## YAML maître généré
+```yaml
+---
+cover: <imageName>
+
+IMAGES: ______________________________________________________________________
+
+img_alt: <post_titre_1>
+img_descr: []
+img_filename: <imageName>
+img_id: []
+img_legende: <post_titre_full>
+img_titre: []
+img_url: []
+
+LIEN: ______________________________________________________________________
+
+lien_archives: <wikilink Archives>
+lien_journal: []
+lien_projet:
+  - "[[Photo]]"
+  - "[[Journal photo]]"
+lien_restes: <wikilink Restes>
+
+MAJ: ______________________________________________________________________
+
+maj_wp: true
+
+POST: ______________________________________________________________________
+
+post_cat:
+  - photo
+  - journal-photo
+post_date: <YYYY-MM-DDThh:mm:00>
+post_descr: []
+post_extrait: []
+post_id: []
+post_mod: []
+post_perma: []
+post_titre_1: <depuis dossier>
+post_titre_2: <Journal du …>
+post_titre_full: <concat>
+post_vid_url: []
+tags: []
+
+WP: ______________________________________________________________________
+
+wp_carnet_link: []
+wp_carnet_on: false
+wp_status: draft
+---
+```
+
+## Corps Markdown
+```markdown
+## Photo
+![[<imageName>]]
+
+## Notes
+![[<post_titre_full>_notes]]
+```
+
+## Règles de dérivation clés
+- `post_date` : convertir la portion `AAAA-MM-JJ-hh-mm` du nom de dossier en `YYYY-MM-DDThh:mm:00`.
+- `post_titre_1` : segment texte après ` - ` (toujours capitalisé et terminé par un point).
+- `post_titre_2` : `Journal du <date en français>` via `formatDateToFrenchDayOnly`.
+- `post_titre_full` : `buildFullTitle(post_titre_1, post_titre_2)` (sert pour le nom du fichier).
+- `lien_archives` / `lien_restes` : `buildArchivesLinkTitle` et `buildRestesLinkTitle` appliquent la transformation « Journal » → « Archives/Restes » et normalisent la ponctuation en `?`.
+- `img_legende` : copie de `post_titre_full`, `img_alt` : copie de `post_titre_1`.
+
+## Gestion des erreurs
+- Format de dossier invalide → `Notice` bloquante.
+- Nom d'image non conforme (`*_WP.webp`) → `Notice` et arrêt.
+- Fichier déjà existant → `createNoteFile` applique un suffixe ou signale l'erreur selon le service ; vérifier les logs.
+
 ## Articulation avec la couche UI
 - La commande palette expose « Créer une note Journal » qui appelle `createJournal(app)`.
 - Les notices communiquent les erreurs de validation avant toute écriture, évitant la création de notes invalides.

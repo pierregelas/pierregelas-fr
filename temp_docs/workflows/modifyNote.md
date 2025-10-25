@@ -45,6 +45,22 @@ Documenter l'action `registerModifyNoteCommand()` (`src/actions/modifyNote.ts`) 
 6. **Gestion des erreurs** :
    - Exceptions globales catchées → log `console.error` + `Notice` avec le message.
 
+## Comportement de la modale
+- Autocomplétion fuzzy sur les slugs issus de `wp_tags/ob_tags_table.md` (colonne `ob_tags_slug`).
+- La zone de chips liste les tags actuels ; chaque chip possède un bouton `×` pour suppression immédiate.
+- `Enter` ou clic sur une suggestion ajoute le tag (ignoré si déjà présent) et vide le champ de saisie.
+- Boutons `Annuler` / `Enregistrer` ; la validation renvoie `null` (annulation) ou la liste sélectionnée.
+
+## Cas sans table des tags
+- Si `loadObsTagSlugs` échoue (table absente ou colonne manquante), la modale affiche un message d'information et **désactive la saisie**.
+- L'utilisateur peut malgré tout retirer des tags existants ; la sauvegarde n'a lieu que si la liste finale diffère de l'originale.
+- Aucun tag ne peut être ajouté tant qu'une table valide n'est pas fournie.
+
+## Ordonnancement & déduplication
+- L'ordre initial des tags est conservé ; les nouveaux tags sont ajoutés en fin de liste, dans l'ordre de sélection.
+- Les doublons sont filtrés au moment de l'ajout et lors de l'écriture (`patchTagsAndMaj` déduplique avant sérialisation).
+- `maj_wp` n'est forcé à `true` que si la liste finale diffère réellement (ajout ou suppression).
+
 ## Articulation avec la couche UI
 - Commande palette unique ; aucune entrée de paramètres dans les Settings.
 - `TagsSelectModal` fournit l'expérience utilisateur (champ de recherche, chips, messages d'information).

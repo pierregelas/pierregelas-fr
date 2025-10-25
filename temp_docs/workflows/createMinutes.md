@@ -65,6 +65,81 @@ Documenter l'action `createMinutes()` (`src/actions/createMinutes.ts`) qui guide
 - Succès → `Notice` « Note Minutes créée » + nom du fichier.
 - Erreur → log console + `Notice` d'échec (message détaillé).
 
+## YAML maître généré
+```yaml
+---
+cover: <img_filename>
+
+IMAGES: ______________________________________________________________________
+
+img_alt: <post_titre_1>
+img_descr: []            # liste vide par défaut
+img_filename: <img_filename>
+img_id: []               # jamais fourni côté Minutes
+img_legende: <post_titre_full>
+img_titre: []
+img_url: []
+
+LIEN: ______________________________________________________________________
+
+lien_archives: []
+lien_journal: []
+lien_projet:
+  - "[[Vidéo]]"
+  - "[[Minutes]]"
+lien_restes: []
+
+MAJ: ______________________________________________________________________
+
+maj_wp: true
+
+POST: ______________________________________________________________________
+
+post_cat:
+  - video
+  - minutes
+post_date: <YYYY-MM-DD>
+post_descr: []
+post_extrait: []
+post_id: <derived from filename>
+post_mod: <YYYY-MM-DD>
+post_perma: []
+post_titre_1: <from filename>
+post_titre_2: <Journal du …>
+post_titre_full: <concat>
+post_vid_url: <videoLink>
+tags: []                 # à compléter manuellement après création
+
+WP: ______________________________________________________________________
+
+wp_carnet_link: []
+wp_carnet_on: false
+wp_status: draft
+---
+```
+
+> Les champs `[]` sont sérialisés via `buildYamlMaster` sous forme de liste vide (`[]`) pour garantir l'homogénéité avec les autres workflows.
+
+## Corps Markdown
+```markdown
+## Vignette
+![[<img_filename>]]
+
+## Vidéo
+![](<videoLink>)
+
+## Notes
+![[<post_titre_full>_notes]]
+```
+
+Lorsque `videoLink` est vide, la section « Vidéo » est omise. L'utilisateur peut ensuite enrichir la note ou suivre le wikilink
+ `_notes` pour renseigner les comptes-rendus.
+
+## Gestion des erreurs
+- Nom de fichier invalide → `Notice` dédiée « Nom de fichier vidéo invalide (AAAA-MM-JJ-hh-mm - … attendu) ».
+- URL de vidéo invalide → `Notice` dédiée (via `validationErrorMessage("videoLink")`).
+- Échec d'écriture → message d'erreur technique + `Notice` d'échec ; aucune note partielle n'est laissée dans le vault.
+
 ## Articulation avec la couche UI
 - Commande palette (dans `main.ts`/`commands`) déclenche `createMinutes(app)`.
 - Notices guident l'utilisateur tout au long du flux ; aucune interaction supplémentaire après la création.

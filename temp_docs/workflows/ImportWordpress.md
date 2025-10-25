@@ -80,7 +80,9 @@ Décrire le déroulé complet de l’action `importWordpressCsv()` (`src/actions
 - **Notes existantes identiques** : aucun `write`, mais elles sont comptabilisées dans `updated_identical` pour informer que le `post_id` est déjà synchronisé.
 - **Bloc WP-IMPORT** : requis pour tracer l’origine de la note ; assuré par `setWpImportBlock` avant sérialisation, et donc présent dans les diff.
 - **Fichiers d’erreurs** : situés sous `<outDir>/ERRORS/`. Le nom inclut `ERROR_<post_id>_<titre>.md` (normalisé). Utile pour corriger manuellement puis relancer l’import.
-- **Diff YAML** : `diffChangedFields` effectue un parsing clé/val minimal des fronts YAML (`extractYamlKV`) et compare aussi le corps normalisé (LF). Permet d’afficher dans le journal quelles clés ont changé.
+   - **Diff YAML** : `diffChangedFields` effectue un parsing clé/val minimal des fronts YAML (`extractYamlKV`) et compare aussi le corps normalisé (LF). Permet d’afficher dans le journal quelles clés ont changé.
+
+> Le **mapping complet YAML ↔ CSV** (sections `IMAGES`, `LIEN`, `POST`, `WP`) est documenté dans [`temp_docs/services-README.md`](../services-README.md#mapping-yaml-import-wordpress).
 
 ## Articulation avec la couche UI
 - `ui/commands.ts` appelle `importWordpressCsv()` pour les actions utilisateur (dry-run et import réel).

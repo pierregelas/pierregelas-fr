@@ -47,6 +47,24 @@ Expliquer l'action `registerJournalRecalcCommand()` (`src/actions/journalRecalc.
    - Succès sans renommage → « Journal mis à jour ».
    - `catch` global → log console + notice d'erreur.
 
+## Champs recalculés
+- `post_titre_2` : `Journal du <jour>` généré avec `formatDateToFrenchDayOnly`.
+- `post_titre_full` : concatène `post_titre_1` + `post_titre_2` via `buildFullTitle`.
+- `img_alt` : copie directe de `post_titre_1`.
+- `img_legende` : copie de `post_titre_full`.
+- `lien_archives` / `lien_restes` : recalcul via `buildArchivesLinkTitle` / `buildRestesLinkTitle`.
+- `cover` : réaligné sur `img_filename` si présent.
+
+## Renommage & collisions
+- Renommage déclenché uniquement si le nom de fichier diffère du `post_titre_full` recalculé.
+- `vault.rename()` ajoute un suffixe (`-1`, `-2`, …) en cas de collision ; l'information apparaît dans la notice de succès.
+- Échec → message console avec chemins source/destination + notice d'erreur.
+
+## Conséquences sur le YAML
+- `applyYamlPatch()` préserve l'ordre des clés existantes tout en remplaçant les valeurs recalculées.
+- Les clés absentes sont ajoutées si nécessaires (`lien_archives`, `lien_restes` en particulier).
+- `maj_wp` n'est pas modifié ; il conserve l'état précédent de la note.
+
 ## Articulation avec la couche UI
 - Commande palette accessible via la catégorie « Journal ».
 - Notice immédiate pour signaler l'absence de note active, de frontmatter ou de champs obligatoires.
